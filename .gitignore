@@ -1,0 +1,9 @@
+.venv/
+.models/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
+.pytest_tmp/
+*.egg-info/
+qdrant_storage/

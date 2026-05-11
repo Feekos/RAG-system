@@ -1,0 +1,8 @@
+.venv/
+.models/
+.pytest_cache/
+__pycache__/
+*.pyc
+.env
+.git/
+qdrant_storage/
