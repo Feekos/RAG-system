@@ -1,0 +1,25 @@
+{
+  "testset_path": "eval/testset.jsonl",
+  "output_dir": "eval/results",
+  "metrics": [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall"
+  ],
+  "llm": {
+    "use_rag_generator": true
+  },
+  "embeddings": {
+    "use_rag_embeddings": true
+  },
+  "rag": {
+    "lazy_generator": true,
+    "top_k": 5
+  },
+  "outputs": {
+    "json": true,
+    "csv": true,
+    "markdown": true
+  }
+}

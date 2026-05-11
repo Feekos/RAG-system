@@ -144,6 +144,49 @@ python main.py --query "Что такое RAG?"
 }
 ```
 
+## RAGAS-оценка
+
+В проект добавлен отдельный evaluation-пайплайн на RAGAS. Он берет вопросы из `eval/testset.jsonl`, прогоняет их через текущий RAG, передает в RAGAS поля `user_input`, `response`, `retrieved_contexts`, `reference` и сохраняет отчеты в `eval/results`.
+
+Конфигурация находится в `eval/ragas_config.json`:
+
+```json
+{
+  "metrics": [
+    "faithfulness",
+    "answer_relevancy",
+    "context_precision",
+    "context_recall"
+  ],
+  "rag": {
+    "lazy_generator": true,
+    "top_k": 5
+  }
+}
+```
+
+Запуск локально:
+
+```bash
+python evaluate_ragas.py
+python evaluate_ragas.py --config eval/ragas_config.json
+python evaluate_ragas.py --metrics faithfulness answer_relevancy --top-k 3
+```
+
+Запуск внутри Docker:
+
+```bash
+docker compose run --rm rag-cli python evaluate_ragas.py
+```
+
+Результаты сохраняются в трех форматах:
+
+- `eval/results/ragas_YYYYMMDD_HHMMSS.json` — полный payload с samples, results и summary;
+- `eval/results/ragas_YYYYMMDD_HHMMSS.csv` — табличный вывод RAGAS;
+- `eval/results/ragas_YYYYMMDD_HHMMSS.md` — короткий markdown-отчет.
+
+Метрики RAGAS являются LLM-based, поэтому при полном запуске будут загружены evaluator LLM и embeddings. По умолчанию используются те же Qwen и BGE-M3 через LangChain-обертки RAGAS.
+
 ## Настройки
 
 | Переменная | По умолчанию | Назначение |
@@ -164,6 +207,9 @@ python main.py --query "Что такое RAG?"
 | `TOP_K` | `5` | сколько чанков извлекать |
 | `CHUNK_SIZE` | `512` | размер чанка |
 | `CHUNK_OVERLAP` | `64` | перекрытие чанков |
+| `RAGAS_CONFIG_PATH` | `eval/ragas_config.json` | конфигурация RAGAS |
+| `RAGAS_TESTSET_PATH` | `eval/testset.jsonl` | тестовый набор RAGAS |
+| `RAGAS_OUTPUT_DIR` | `eval/results` | папка отчетов RAGAS |
 
 ## Данные и модели
 

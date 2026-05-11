@@ -14,6 +14,7 @@ services:
       TRANSFORMERS_CACHE: /models
     volumes:
       - ./data:/app/data
+      - ./eval:/app/eval
       - hf_cache:/models
     ports:
       - "${RAG_API_BIND:-0.0.0.0}:${RAG_API_PORT:-8000}:8000"
@@ -38,6 +39,7 @@ services:
       TRANSFORMERS_CACHE: /models
     volumes:
       - ./data:/app/data
+      - ./eval:/app/eval
       - hf_cache:/models
     command: ["python", "main.py"]
 

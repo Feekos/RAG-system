@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     chunk_size: int = Field(512, alias="CHUNK_SIZE")
     chunk_overlap: int = Field(64, alias="CHUNK_OVERLAP")
 
+    # RAGAS evaluation
+    ragas_config_path: str = Field("eval/ragas_config.json", alias="RAGAS_CONFIG_PATH")
+    ragas_testset_path: str = Field("eval/testset.jsonl", alias="RAGAS_TESTSET_PATH")
+    ragas_output_dir: str = Field("eval/results", alias="RAGAS_OUTPUT_DIR")
+
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 
 

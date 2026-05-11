@@ -7,3 +7,4 @@ __pycache__/
 .pytest_tmp/
 *.egg-info/
 qdrant_storage/
+eval/results/
