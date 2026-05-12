@@ -133,8 +133,8 @@ class TestQuery:
         second_retrieval_query = mock_retriever.retrieve_with_context.call_args_list[1].args[0]
         second_payload = chain.invoke.call_args_list[1].args[0]
         assert "How can I reduce my credit debt?" in second_retrieval_query
-        assert "avalanche method" in second_retrieval_query
         assert "What other method is there?" in second_retrieval_query
+        assert "avalanche method" not in second_retrieval_query
         assert "How can I reduce my credit debt?" in second_payload["chat_history"]
         assert "avalanche method" in second_payload["chat_history"]
 
