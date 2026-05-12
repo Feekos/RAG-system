@@ -1,6 +1,7 @@
 """Tests for EmbeddingModel direct AutoTokenizer/AutoModel wrapper."""
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,19 +19,21 @@ class TestEmbeddingModel:
             mock_torch.cuda.is_available.return_value = False
             mock_torch.float32 = "float32"
             mock_torch.float16 = "float16"
+            mock_torch.long = "long"
+            mock_tensor = MagicMock()
+            mock_tensor.to.return_value = mock_tensor
+            mock_torch.tensor.return_value = mock_tensor
             mock_torch.no_grad.return_value.__enter__.return_value = None
             mock_torch.no_grad.return_value.__exit__.return_value = None
 
             mock_tokenizer = MagicMock()
             mock_tokenizer.pad_token = "<|endoftext|>"
             mock_tokenizer.eos_token = "<|endoftext|>"
-            mock_tokenizer.return_value = {"input_ids": [1, 2], "attention_mask": [1, 1]}
-            mock_tokenizer.pad.return_value = {
-                "input_ids": MagicMock(),
-                "attention_mask": MagicMock(),
-            }
-            for value in mock_tokenizer.pad.return_value.values():
-                value.to.return_value = value
+            mock_tokenizer.pad_token_id = 0
+            mock_tokenizer.eos_token_id = 0
+            mock_tokenizer.backend_tokenizer.encode.side_effect = lambda text, add_special_tokens=True: SimpleNamespace(
+                ids=[1, len(text), 2]
+            )
             mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
 
             mock_model = MagicMock()
@@ -79,14 +82,13 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="Octen/Octen-Embedding-0.6B")
         result = model.embed_documents(["doc 1", "doc 2"])
 
-        assert mock_transformers["tokenizer"].call_count == 2
-        assert mock_transformers["tokenizer"].call_args_list[0].args[0] == "doc 1"
-        assert mock_transformers["tokenizer"].call_args_list[1].args[0] == "doc 2"
-        call_kwargs = mock_transformers["tokenizer"].call_args_list[0].kwargs
-        assert call_kwargs["padding"] is False
-        assert call_kwargs["truncation"] is True
-        mock_transformers["tokenizer"].pad.assert_called_once()
-        assert mock_transformers["tokenizer"].pad.call_args.kwargs["return_tensors"] == "pt"
+        backend_encode = mock_transformers["tokenizer"].backend_tokenizer.encode
+        assert backend_encode.call_count == 2
+        assert backend_encode.call_args_list[0].args[0] == "doc 1"
+        assert backend_encode.call_args_list[1].args[0] == "doc 2"
+        assert backend_encode.call_args_list[0].kwargs["add_special_tokens"] is True
+        mock_transformers["tokenizer"].assert_not_called()
+        mock_transformers["torch"].tensor.assert_called()
         assert len(result) == 2
 
     def test_embed_query_returns_list(self, mock_transformers):
@@ -108,7 +110,7 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="Octen/Octen-Embedding-0.6B")
         model.embed_query("What is RAG?")
 
-        call_text = mock_transformers["tokenizer"].call_args.args[0]
+        call_text = mock_transformers["tokenizer"].backend_tokenizer.encode.call_args.args[0]
         assert call_text.startswith("Instruct:")
         assert call_text.endswith("What is RAG?")
 
@@ -118,7 +120,7 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="intfloat/multilingual-e5-large")
         model.embed_query("What is RAG?")
 
-        assert mock_transformers["tokenizer"].call_args.args[0] == "What is RAG?"
+        assert mock_transformers["tokenizer"].backend_tokenizer.encode.call_args.args[0] == "What is RAG?"
 
     def test_embed_query_rejects_non_string_input(self, mock_transformers):
         from src.embeddings import EmbeddingModel

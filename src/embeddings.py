@@ -73,21 +73,40 @@ class EmbeddingModel(Embeddings):
         return embeddings.detach().cpu().float().tolist()
 
     def _tokenize_texts(self, texts: List[str]) -> dict:
-        encoded = [
-            self._tokenizer(
-                text,
-                padding=False,
+        token_ids = [self._encode_token_ids(text) for text in texts]
+        pad_token_id = self._pad_token_id()
+        max_length = max(len(ids) for ids in token_ids)
+        padded_ids = []
+        attention_masks = []
+        for ids in token_ids:
+            pad_length = max_length - len(ids)
+            padded_ids.append([pad_token_id] * pad_length + ids)
+            attention_masks.append([0] * pad_length + [1] * len(ids))
+        return {
+            "input_ids": torch.tensor(padded_ids, dtype=torch.long),
+            "attention_mask": torch.tensor(attention_masks, dtype=torch.long),
+        }
+
+    def _encode_token_ids(self, text: str, max_length: int = 8192) -> List[int]:
+        backend = getattr(self._tokenizer, "backend_tokenizer", None)
+        if backend is not None:
+            encoding = backend.encode(str(text), add_special_tokens=True)
+            return list(encoding.ids[-max_length:])
+        return list(
+            self._tokenizer.encode(
+                str(text),
+                add_special_tokens=True,
                 truncation=True,
-                max_length=8192,
-                return_attention_mask=True,
+                max_length=max_length,
             )
-            for text in texts
-        ]
-        return self._tokenizer.pad(
-            encoded,
-            padding=True,
-            return_tensors="pt",
         )
+
+    def _pad_token_id(self) -> int:
+        for attr in ("pad_token_id", "eos_token_id"):
+            value = getattr(self._tokenizer, attr, None)
+            if value is not None:
+                return int(value)
+        return 0
 
     def _format_query_text(self, text: str) -> str:
         model_name = getattr(self, "_model_name", settings.embedding_model).lower()
