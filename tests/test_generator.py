@@ -47,6 +47,10 @@ class TestBuildRagPrompt:
         """Source citations [1], [2] must be mentioned for traceability."""
         assert "[1]" in self.system or "cite" in self.system.lower()
 
+    def test_system_prompt_asks_for_complete_answers(self):
+        assert "complete" in self.system.lower()
+        assert "middle of a sentence" in self.system.lower()
+
     def test_prompt_formats_with_question_and_context(self):
         prompt = self.build()
         formatted = prompt.format_messages(
@@ -132,22 +136,32 @@ class TestGenerator:
     def test_pipeline_removes_default_max_length_warning_source(self, mock_transformers):
         """max_length=20 must not survive alongside max_new_tokens."""
         mock_pipe = MagicMock()
-        mock_pipe._forward_params = {"max_length": 20, "max_new_tokens": 256}
+        mock_pipe._forward_params = {"max_length": 20, "max_new_tokens": 384}
         mock_pipe.model = SimpleNamespace(generation_config=SimpleNamespace(max_length=20))
         mock_transformers["pipeline"].return_value = mock_pipe
 
         from src.generator import Generator
-        Generator(model_name="Qwen/Qwen1.5-4B-Chat")
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.generator_model = "Qwen/Qwen1.5-4B-Chat"
+            mock_settings.max_new_tokens = 384
+            mock_settings.temperature = 0.0
+            mock_settings.torch_dtype = "auto"
+            Generator()
 
         assert "max_length" not in mock_pipe._forward_params
+        assert mock_pipe._forward_params["max_new_tokens"] == 384
+        assert mock_pipe._forward_params["do_sample"] is False
         assert mock_pipe.model.generation_config.max_length is None
+        assert mock_pipe.model.generation_config.max_new_tokens == 384
+        assert mock_pipe.model.generation_config.do_sample is False
+        assert mock_pipe.model.generation_config._from_model_config is False
 
     def test_zero_temperature_disables_sampling_without_temperature_arg(self, mock_transformers):
         from src.generator import Generator
 
         with patch("src.generator.settings") as mock_settings:
             mock_settings.generator_model = "Qwen/Qwen1.5-1.8B-Chat"
-            mock_settings.max_new_tokens = 256
+            mock_settings.max_new_tokens = 384
             mock_settings.temperature = 0.0
             mock_settings.torch_dtype = "auto"
             Generator()

@@ -202,7 +202,7 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 | `EMBEDDING_DIM` | `1024` | размерность векторов |
 | `GENERATOR_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | модель генерации |
 | `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |
-| `MAX_NEW_TOKENS` | `256` | максимум новых токенов |
+| `MAX_NEW_TOKENS` | `384` | максимум новых токенов |
 | `TEMPERATURE` | `0.0` | температура генерации |
 | `TOP_K` | `5` | сколько чанков извлекать |
 | `CHUNK_SIZE` | `512` | размер чанка |

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
+
 import torch
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
 from transformers import AutoTokenizer
 from transformers import pipeline as hf_pipeline
+from transformers.utils import logging as hf_logging
 
 from .config import settings
 
@@ -13,7 +16,8 @@ _SYSTEM_PROMPT = """\
 You are a helpful multilingual assistant. Answer questions ONLY based on the provided context.
 If the answer is not present in the context, reply: "The answer is not available in the provided documents."
 Always respond in the SAME language the question was asked in (Russian, English, etc.).
-Cite source snippets using [1], [2], etc. when referencing specific passages."""
+Cite source snippets using [1], [2], etc. when referencing specific passages.
+Keep the answer concise and complete. Do not stop in the middle of a sentence."""
 
 _RAG_HUMAN_TEMPLATE = """\
 Context:
@@ -48,6 +52,7 @@ class Generator:
 
     def __init__(self, model_name: str | None = None):
         model_name = model_name or settings.generator_model
+        _configure_transformers_logging()
         print(f"[Generator] Загрузка модели: {model_name} ...")
 
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
@@ -76,7 +81,7 @@ class Generator:
             pipe_kwargs["device"] = "cpu"
 
         pipe = hf_pipeline("text-generation", **pipe_kwargs)
-        _clear_default_max_length(pipe)
+        _normalize_generation_config(pipe)
         lc_pipe = HuggingFacePipeline(pipeline=pipe)
         # ChatHuggingFace applies the tokenizer's chat template (ChatML for all Qwen variants)
         self._llm: BaseChatModel = ChatHuggingFace(llm=lc_pipe)
@@ -104,16 +109,34 @@ def _resolve_dtype(dtype_name: str):
     )
 
 
-def _clear_default_max_length(pipe) -> None:
+def _configure_transformers_logging() -> None:
+    for logger_name in (
+        "transformers.generation.configuration_utils",
+        "transformers.generation.utils",
+    ):
+        hf_logging.get_logger(logger_name).setLevel(logging.ERROR)
+
+
+def _normalize_generation_config(pipe) -> None:
     """
-    Transformers text-generation pipelines can keep max_length=20 in their
-    internal forward params. When max_new_tokens is also set, generate() emits
-    a noisy warning even though max_new_tokens wins.
+    Keep generation settings explicit so transformers does not print first-call
+    generation_config notices before the assistant's answer.
     """
     forward_params = getattr(pipe, "_forward_params", None)
     if isinstance(forward_params, dict):
         forward_params.pop("max_length", None)
+        forward_params["max_new_tokens"] = settings.max_new_tokens
+        forward_params["do_sample"] = settings.temperature > 0
+        if settings.temperature > 0:
+            forward_params["temperature"] = settings.temperature
+        else:
+            forward_params.pop("temperature", None)
 
     generation_config = getattr(getattr(pipe, "model", None), "generation_config", None)
-    if generation_config is not None and getattr(generation_config, "max_length", None) == 20:
+    if generation_config is not None:
+        generation_config.max_new_tokens = settings.max_new_tokens
+        generation_config.do_sample = settings.temperature > 0
         generation_config.max_length = None
+        if settings.temperature > 0:
+            generation_config.temperature = settings.temperature
+        setattr(generation_config, "_from_model_config", False)
