@@ -35,7 +35,7 @@ QDRANT_HOST=localhost
 QDRANT_HTTP_BIND=127.0.0.1
 QDRANT_GRPC_BIND=127.0.0.1
 GENERATOR_MODEL=Qwen/Qwen3-4B-Instruct-2507
-TORCH_DTYPE=auto
+TORCH_DTYPE=float16
 ```
 
 Внутри Docker Compose приложение само переопределяет `QDRANT_HOST` на `qdrant`, поэтому локальное значение `localhost` остается удобным для запуска без контейнера приложения. Порты Qdrant по умолчанию открыты только на хосте Docker, а наружу публикуется только API.
@@ -201,9 +201,9 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 | `EMBEDDING_MODEL` | `BAAI/bge-m3` | модель эмбеддингов |
 | `EMBEDDING_DIM` | `1024` | размерность векторов |
 | `GENERATOR_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | модель генерации |
-| `TORCH_DTYPE` | `auto` | `auto`, `float16`, `bfloat16`, `float32` |
-| `MAX_NEW_TOKENS` | `512` | максимум новых токенов |
-| `TEMPERATURE` | `0.7` | температура генерации |
+| `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |
+| `MAX_NEW_TOKENS` | `256` | максимум новых токенов |
+| `TEMPERATURE` | `0.0` | температура генерации |
 | `TOP_K` | `5` | сколько чанков извлекать |
 | `CHUNK_SIZE` | `512` | размер чанка |
 | `CHUNK_OVERLAP` | `64` | перекрытие чанков |
@@ -218,7 +218,7 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 - модели HuggingFace кешируются в Docker volume `hf_cache`;
 - данные Qdrant хранятся в Docker volume `qdrant_storage`.
 
-Qwen-4B можно запускать на CPU, но это медленно. Для нормального инференса лучше использовать сервер с GPU и NVIDIA Container Toolkit. При GPU обычно ставят `TORCH_DTYPE=float16` или `bfloat16`.
+Qwen-4B можно запускать на CPU, но это медленно. Для нормального инференса лучше использовать сервер с GPU и NVIDIA Container Toolkit. По умолчанию проект настроен на GPU с `TORCH_DTYPE=float16`; для запуска без GPU поменяйте значение на `auto` или `float32`.
 
 ## Проверка
 

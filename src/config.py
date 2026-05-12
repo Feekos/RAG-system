@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     # Generation model (HuggingFace ID or local path)
     # Qwen3-4B-Instruct-2507: 4B params, ~8 GB weights in fp16/bf16.
     generator_model: str = Field("Qwen/Qwen3-4B-Instruct-2507", alias="GENERATOR_MODEL")
-    max_new_tokens: int = Field(512, alias="MAX_NEW_TOKENS")
-    temperature: float = Field(0.7, alias="TEMPERATURE")
-    torch_dtype: str = Field("auto", alias="TORCH_DTYPE")
+    max_new_tokens: int = Field(256, alias="MAX_NEW_TOKENS")
+    temperature: float = Field(0.0, alias="TEMPERATURE")
+    torch_dtype: str = Field("float16", alias="TORCH_DTYPE")
 
     # Retrieval
     top_k: int = Field(5, alias="TOP_K")

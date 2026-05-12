@@ -2,6 +2,7 @@ services:
   rag:
     build: .
     image: local-rag-qwen-qdrant:latest
+    gpus: all
     depends_on:
       - qdrant
     env_file:
@@ -24,6 +25,7 @@ services:
   rag-cli:
     build: .
     image: local-rag-qwen-qdrant:latest
+    gpus: all
     profiles: ["cli"]
     stdin_open: true
     tty: true

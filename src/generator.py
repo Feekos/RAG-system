@@ -56,13 +56,17 @@ class Generator:
             "model": model_name,
             "tokenizer": tokenizer,
             "max_new_tokens": settings.max_new_tokens,
-            "temperature": settings.temperature,
-            "do_sample": settings.temperature > 0,
             "return_full_text": False,  # return only newly generated tokens
             "trust_remote_code": True,
             # `dtype` is the non-deprecated replacement for `torch_dtype`.
             "dtype": _resolve_dtype(getattr(settings, "torch_dtype", "auto")),
         }
+
+        if settings.temperature > 0:
+            pipe_kwargs["temperature"] = settings.temperature
+            pipe_kwargs["do_sample"] = True
+        else:
+            pipe_kwargs["do_sample"] = False
 
         if torch.cuda.is_available():
             # device_map="auto" must be passed to hf_pipeline, NOT to from_pretrained,
@@ -72,6 +76,7 @@ class Generator:
             pipe_kwargs["device"] = "cpu"
 
         pipe = hf_pipeline("text-generation", **pipe_kwargs)
+        _clear_default_max_length(pipe)
         lc_pipe = HuggingFacePipeline(pipeline=pipe)
         # ChatHuggingFace applies the tokenizer's chat template (ChatML for all Qwen variants)
         self._llm: BaseChatModel = ChatHuggingFace(llm=lc_pipe)
@@ -97,3 +102,18 @@ def _resolve_dtype(dtype_name: str):
     raise ValueError(
         "Unsupported TORCH_DTYPE value. Use one of: auto, float16, bfloat16, float32."
     )
+
+
+def _clear_default_max_length(pipe) -> None:
+    """
+    Transformers text-generation pipelines can keep max_length=20 in their
+    internal forward params. When max_new_tokens is also set, generate() emits
+    a noisy warning even though max_new_tokens wins.
+    """
+    forward_params = getattr(pipe, "_forward_params", None)
+    if isinstance(forward_params, dict):
+        forward_params.pop("max_length", None)
+
+    generation_config = getattr(getattr(pipe, "model", None), "generation_config", None)
+    if generation_config is not None and getattr(generation_config, "max_length", None) == 20:
+        generation_config.max_length = None

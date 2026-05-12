@@ -1,6 +1,7 @@
 """Tests for Generator — prompt structure, LangChain wiring, and multilingual system prompt."""
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -127,6 +128,33 @@ class TestGenerator:
         Generator(model_name="Qwen/Qwen1.5-4B-Chat")
         call_kwargs = mock_transformers["pipeline"].call_args.kwargs
         assert call_kwargs.get("return_full_text") is False
+
+    def test_pipeline_removes_default_max_length_warning_source(self, mock_transformers):
+        """max_length=20 must not survive alongside max_new_tokens."""
+        mock_pipe = MagicMock()
+        mock_pipe._forward_params = {"max_length": 20, "max_new_tokens": 256}
+        mock_pipe.model = SimpleNamespace(generation_config=SimpleNamespace(max_length=20))
+        mock_transformers["pipeline"].return_value = mock_pipe
+
+        from src.generator import Generator
+        Generator(model_name="Qwen/Qwen1.5-4B-Chat")
+
+        assert "max_length" not in mock_pipe._forward_params
+        assert mock_pipe.model.generation_config.max_length is None
+
+    def test_zero_temperature_disables_sampling_without_temperature_arg(self, mock_transformers):
+        from src.generator import Generator
+
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.generator_model = "Qwen/Qwen1.5-1.8B-Chat"
+            mock_settings.max_new_tokens = 256
+            mock_settings.temperature = 0.0
+            mock_settings.torch_dtype = "auto"
+            Generator()
+
+        call_kwargs = mock_transformers["pipeline"].call_args.kwargs
+        assert call_kwargs.get("do_sample") is False
+        assert "temperature" not in call_kwargs
 
     def test_cpu_path_uses_device_cpu_not_device_map(self, mock_transformers):
         """On CPU, device_map must NOT be set to avoid meta-tensor segfault."""

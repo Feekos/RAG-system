@@ -100,3 +100,19 @@ class TestEmbeddingModel:
         result = model.embed_query("Что такое векторная база данных?")
         assert len(result) == 1024
         mock_instance.embed_query.assert_called_once()
+
+    def test_embed_query_rejects_non_string_input(self, mock_hf_embeddings):
+        from src.embeddings import EmbeddingModel
+
+        model = EmbeddingModel(model_name="BAAI/bge-m3")
+
+        with pytest.raises(TypeError, match="Query text must be str"):
+            model.embed_query({"text": "What is RAG?"})  # type: ignore[arg-type]
+
+    def test_embed_documents_rejects_single_string(self, mock_hf_embeddings):
+        from src.embeddings import EmbeddingModel
+
+        model = EmbeddingModel(model_name="BAAI/bge-m3")
+
+        with pytest.raises(TypeError, match="Document texts must be a list of str"):
+            model.embed_documents("doc 1")  # type: ignore[arg-type]
