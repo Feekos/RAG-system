@@ -1,10 +1,5 @@
 """
-Interactive RAG chat.
-
-Usage:
-    python main.py                      # interactive REPL
-    python main.py --query "What is X?" # single question, then exit
-    python main.py --stream             # stream tokens to stdout
+Логика интерактивного чата RAG
 """
 
 import argparse
@@ -20,7 +15,7 @@ if "HF_HOME" in os.environ:
 
 _BANNER = """
 ================================================
-  RAG ver. 0.2 | Qwen-4B + Qdrant + Octen-Embedding-0.6B
+  RAG ver. 0.3 | Qwen-4B + Qdrant + Octen-Embedding-0.6B
 ================================================
 Система поддерживает следующие языки: EN, RU.
 Комманды:  /stats  /quit

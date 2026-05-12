@@ -248,12 +248,13 @@ python evaluate_ragas.py --experiments
 Запуск внутри CLI Docker:
 
 ```bash
-docker compose run --rm rag-cli python evaluate_ragas.py
+docker compose run --rm rag-cli python evaluate_ragas.py # Запуск оценки RAGAS
 docker compose run --rm rag-cli python evaluate_ragas.py --index-path data/documents --reset-index
-docker compose run --rm rag-cli python evaluate_ragas.py --experiments
+docker compose run --rm rag-cli python evaluate_ragas.py --experiments # Запуск экспериментов
 ```
 
-Для подбора продовой комбинации используйте `experiments` в `eval/ragas_config.json`. Это Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. Если меняете `chunk_size`, `chunk_overlap`, `embedding_model` или `embedding_dim`, включите `reset_index=true` или передайте `--reset-index`, иначе будет оцениваться старая коллекция Qdrant.
+Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
+Это Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. Если меняете `chunk_size`, `chunk_overlap`, `embedding_model` или `embedding_dim`, включите `reset_index=true` или передайте `--reset-index`, иначе будет оцениваться старая коллекция Qdrant.
 
 Параметры для перебора: `top_k`, `chunk_size`, `chunk_overlap`, `embedding_model`, `embedding_dim`, `generator_model`, `max_new_tokens`, `temperature`, `torch_dtype`, `qdrant_collection`.
 

@@ -1,10 +1,5 @@
 """
-Ingest documents into the RAG knowledge base.
-
-Usage:
-    python ingest.py data/documents/         # ingest entire directory
-    python ingest.py path/to/file.pdf        # ingest single file
-    python ingest.py --reset data/documents/ # clear collection first
+Логика загрузки документов в векторную БД (базу знаний) RAG
 """
 
 import argparse

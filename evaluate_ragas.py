@@ -1,7 +1,7 @@
 """
-Run RAGAS evaluation for the local RAG pipeline.
+Логика запуска оценки RAGAS для локального пайплайна RAG
 
-Usage:
+Команды:
     python evaluate_ragas.py
     python evaluate_ragas.py --config eval/ragas_config.json
     python evaluate_ragas.py --testset eval/testset.jsonl --output-dir eval/results
