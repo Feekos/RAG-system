@@ -41,7 +41,7 @@ class TestEnsureCollection:
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
             mock_settings.qdrant_collection = "documents"
-            mock_settings.embedding_dim = 2560
+            mock_settings.embedding_dim = 1024
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -68,7 +68,7 @@ class TestEnsureCollection:
             mock_settings.qdrant_collection = "documents"
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
-            mock_settings.embedding_dim = 2560
+            mock_settings.embedding_dim = 1024
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -94,11 +94,11 @@ class TestEnsureCollection:
             mock_settings.qdrant_collection = "documents"
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
-            mock_settings.embedding_dim = 2560
+            mock_settings.embedding_dim = 1024
             mock_settings.top_k = 5
 
             collection_info = MagicMock()
-            collection_info.config.params.vectors.size = 1024
+            collection_info.config.params.vectors.size = 2560
 
             mock_client = MagicMock()
             mock_client.get_collections.return_value.collections = [_make_collection("documents")]
@@ -110,7 +110,7 @@ class TestEnsureCollection:
 
             from src.vector_store import VectorStore
 
-            with pytest.raises(RuntimeError, match="vector size 1024"):
+            with pytest.raises(RuntimeError, match="vector size 2560"):
                 VectorStore(mock_embeddings)
 
 
@@ -125,7 +125,7 @@ class TestAddDocuments:
             mock_settings.qdrant_collection = "documents"
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
-            mock_settings.embedding_dim = 2560
+            mock_settings.embedding_dim = 1024
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -179,7 +179,7 @@ class TestConnectionParameters:
             mock_settings.qdrant_host = "qdrant-server"
             mock_settings.qdrant_port = 6333
             mock_settings.qdrant_collection = "my_collection"
-            mock_settings.embedding_dim = 2560
+            mock_settings.embedding_dim = 1024
             mock_settings.top_k = 5
 
             mock_client = MagicMock()

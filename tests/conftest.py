@@ -44,7 +44,7 @@ MIXED_TEXT = ENGLISH_TEXT + "\n\n" + RUSSIAN_TEXT
 def sample_docs_en() -> list[Document]:
     return [
         Document(page_content="Qdrant is a vector database written in Rust.", metadata={"source": "en.txt"}),
-        Document(page_content="Octen-Embedding-4B supports more than 100 languages.", metadata={"source": "en.txt"}),
+        Document(page_content="Octen-Embedding-0.6B supports more than 100 languages.", metadata={"source": "en.txt"}),
         Document(page_content="RAG combines retrieval with generation.", metadata={"source": "en.txt"}),
     ]
 
@@ -53,7 +53,7 @@ def sample_docs_en() -> list[Document]:
 def sample_docs_ru() -> list[Document]:
     return [
         Document(page_content="Qdrant — векторная база данных, написанная на Rust.", metadata={"source": "ru.txt"}),
-        Document(page_content="Octen-Embedding-4B поддерживает более 100 языков.", metadata={"source": "ru.txt"}),
+        Document(page_content="Octen-Embedding-0.6B поддерживает более 100 языков.", metadata={"source": "ru.txt"}),
         Document(page_content="RAG сочетает поиск с генерацией текста.", metadata={"source": "ru.txt"}),
     ]
 

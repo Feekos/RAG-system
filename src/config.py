@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     qdrant_collection: str = Field("documents", alias="QDRANT_COLLECTION")
 
     # Embedding model (sentence-transformers compatible)
-    embedding_model: str = Field("Octen/Octen-Embedding-4B", alias="EMBEDDING_MODEL")
-    embedding_dim: int = Field(2560, alias="EMBEDDING_DIM")
+    embedding_model: str = Field("Octen/Octen-Embedding-0.6B", alias="EMBEDDING_MODEL")
+    embedding_dim: int = Field(1024, alias="EMBEDDING_DIM")
 
     # Generation model (HuggingFace ID or local path)
     # Qwen3-4B-Instruct-2507: 4B params, ~8 GB weights in fp16/bf16.
