@@ -35,6 +35,7 @@ QDRANT_HOST=localhost
 QDRANT_HTTP_BIND=127.0.0.1
 QDRANT_GRPC_BIND=127.0.0.1
 GENERATOR_MODEL=Qwen/Qwen3-4B-Instruct-2507
+SYSTEM_PROMPT="Ты полезный RAG-ассистент. Отвечай только по контексту и на языке вопроса."
 TORCH_DTYPE=float16
 ```
 
@@ -201,6 +202,7 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 | `EMBEDDING_MODEL` | `BAAI/bge-m3` | модель эмбеддингов |
 | `EMBEDDING_DIM` | `1024` | размерность векторов |
 | `GENERATOR_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | модель генерации |
+| `SYSTEM_PROMPT` | пусто | системный промпт; если пусто, используется промпт по умолчанию |
 | `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |
 | `MAX_NEW_TOKENS` | `384` | максимум новых токенов |
 | `TEMPERATURE` | `0.0` | температура генерации |

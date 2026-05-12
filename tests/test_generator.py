@@ -12,10 +12,11 @@ import pytest
 class TestBuildRagPrompt:
     @pytest.fixture(autouse=True)
     def import_prompt_builder(self):
-        from src.generator import build_rag_prompt, _SYSTEM_PROMPT, _RAG_HUMAN_TEMPLATE
+        from src.generator import build_rag_prompt, _SYSTEM_PROMPT, _RAG_HUMAN_TEMPLATE, _get_system_prompt
         self.build = build_rag_prompt
         self.system = _SYSTEM_PROMPT
         self.human_template = _RAG_HUMAN_TEMPLATE
+        self.get_system_prompt = _get_system_prompt
 
     def test_prompt_has_two_messages(self):
         prompt = self.build()
@@ -37,19 +38,39 @@ class TestBuildRagPrompt:
 
     def test_system_prompt_mentions_language_matching(self):
         """System prompt must instruct model to reply in user's language for multilingual support."""
-        assert "language" in self.system.lower() or "язык" in self.system.lower()
+        assert "языке" in self.system.lower()
 
     def test_system_prompt_mentions_context_grounding(self):
         """Model must be instructed to answer ONLY from context (avoid hallucinations)."""
-        assert "context" in self.system.lower() or "ONLY" in self.system
+        assert "контекст" in self.system.lower()
 
     def test_system_prompt_mentions_citations(self):
         """Source citations [1], [2] must be mentioned for traceability."""
         assert "[1]" in self.system or "cite" in self.system.lower()
 
     def test_system_prompt_asks_for_complete_answers(self):
-        assert "complete" in self.system.lower()
-        assert "middle of a sentence" in self.system.lower()
+        assert "законченными" in self.system.lower()
+        assert "середине предложения" in self.system.lower()
+
+    def test_empty_env_system_prompt_uses_default(self):
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.system_prompt = "   "
+            assert self.get_system_prompt() == self.system
+
+    def test_env_system_prompt_overrides_default(self):
+        custom_prompt = "Отвечай как строгий RAG-ассистент."
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.system_prompt = custom_prompt
+            assert self.get_system_prompt() == custom_prompt
+
+    def test_prompt_uses_env_system_prompt(self):
+        custom_prompt = "Отвечай только одним предложением."
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.system_prompt = custom_prompt
+            prompt = self.build()
+
+        formatted = prompt.format_messages(question="Что такое RAG?", context="RAG text")
+        assert formatted[0].content == custom_prompt
 
     def test_prompt_formats_with_question_and_context(self):
         prompt = self.build()

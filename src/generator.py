@@ -13,11 +13,11 @@ from transformers.utils import logging as hf_logging
 from .config import settings
 
 _SYSTEM_PROMPT = """\
-You are a helpful multilingual assistant. Answer questions ONLY based on the provided context.
-If the answer is not present in the context, reply: "The answer is not available in the provided documents."
-Always respond in the SAME language the question was asked in (Russian, English, etc.).
-Cite source snippets using [1], [2], etc. when referencing specific passages.
-Keep the answer concise and complete. Do not stop in the middle of a sentence."""
+Ты полезный многоязычный ассистент. Отвечай на вопросы только на основе предоставленного контекста.
+Если ответа нет в контексте, ответь: "Ответ отсутствует в предоставленных документах."
+Всегда отвечай на том же языке, на котором задан вопрос.
+Когда ссылаешься на конкретные фрагменты, указывай источники в формате [1], [2] и так далее.
+Отвечай кратко и законченными предложениями. Не обрывай ответ на середине предложения."""
 
 _RAG_HUMAN_TEMPLATE = """\
 Context:
@@ -29,10 +29,17 @@ Question: {question}"""
 def build_rag_prompt() -> ChatPromptTemplate:
     return ChatPromptTemplate.from_messages(
         [
-            ("system", _SYSTEM_PROMPT),
+            ("system", _get_system_prompt()),
             ("human", _RAG_HUMAN_TEMPLATE),
         ]
     )
+
+
+def _get_system_prompt() -> str:
+    configured_prompt = getattr(settings, "system_prompt", "")
+    if isinstance(configured_prompt, str) and configured_prompt.strip():
+        return configured_prompt.strip()
+    return _SYSTEM_PROMPT
 
 
 class Generator:
