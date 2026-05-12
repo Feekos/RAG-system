@@ -51,9 +51,6 @@ class EmbeddingModel(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         text = self._ensure_text(text, "Query text")
-        prompt_name = self._query_prompt_name()
-        if prompt_name is not None:
-            return self._encode_texts([text], prompt_name=prompt_name)[0]
         return self._encode_texts([self._format_query_text(text)])[0]
 
     def _encode_texts(self, texts: List[str], **encode_kwargs) -> List[List[float]]:
@@ -68,12 +65,6 @@ class EmbeddingModel(Embeddings):
             embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
             for embedding in embeddings
         ]
-
-    def _query_prompt_name(self) -> str | None:
-        prompts = getattr(self._client, "prompts", None)
-        if isinstance(prompts, dict) and "query" in prompts:
-            return "query"
-        return None
 
     def _format_query_text(self, text: str) -> str:
         model_name = getattr(self, "_model_name", settings.embedding_model).lower()

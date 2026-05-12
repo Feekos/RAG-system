@@ -63,7 +63,7 @@ class TestEmbeddingModel:
         assert isinstance(result, list)
         assert len(result) == 1024
 
-    def test_query_uses_model_query_prompt_when_available(self, mock_hf_embeddings):
+    def test_octen_query_uses_instruction_text_instead_of_prompt_name(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
@@ -74,11 +74,10 @@ class TestEmbeddingModel:
         model._model_name = "Octen/Octen-Embedding-0.6B"
         model.embed_query("What is RAG?")
 
-        mock_instance._client.encode.assert_called_once_with(
-            ["What is RAG?"],
-            normalize_embeddings=True,
-            prompt_name="query",
-        )
+        call_text = mock_instance._client.encode.call_args.args[0][0]
+        assert call_text.startswith("Instruct:")
+        assert call_text.endswith("What is RAG?")
+        assert "prompt_name" not in mock_instance._client.encode.call_args.kwargs
 
     def test_query_prompt_is_omitted_when_unavailable(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
@@ -97,7 +96,7 @@ class TestEmbeddingModel:
             normalize_embeddings=True,
         )
 
-    def test_octen_query_uses_instruction_fallback_when_prompt_unavailable(self, mock_hf_embeddings):
+    def test_octen_query_uses_instruction_when_prompt_unavailable(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
