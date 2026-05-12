@@ -21,7 +21,10 @@ class EmbeddingModel(Embeddings):
         print(f"[Embeddings] Загрузка модели: {name} на {_auto_device()} ...")
         self._lc = HuggingFaceEmbeddings(
             model_name=name,
-            model_kwargs={"device": _auto_device()},
+            model_kwargs={
+                "device": _auto_device(),
+                "tokenizer_kwargs": {"padding_side": "left"},
+            },
             encode_kwargs={"normalize_embeddings": True},
         )
         self._client = self._lc._client
@@ -48,17 +51,35 @@ class EmbeddingModel(Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         text = self._ensure_text(text, "Query text")
-        # BGE family uses asymmetric retrieval; queries benefit from this instruction.
-        model_name = getattr(self, "_model_name", settings.embedding_model)
-        if "bge" in model_name.lower():
-            text = f"Represent this sentence for searching relevant passages: {text}"
-        return self._encode_texts([text])[0]
+        prompt_name = self._query_prompt_name()
+        if prompt_name is not None:
+            return self._encode_texts([text], prompt_name=prompt_name)[0]
+        return self._encode_texts([self._format_query_text(text)])[0]
 
-    def _encode_texts(self, texts: List[str]) -> List[List[float]]:
-        embeddings = self._client.encode(texts, normalize_embeddings=True)
+    def _encode_texts(self, texts: List[str], **encode_kwargs) -> List[List[float]]:
+        embeddings = self._client.encode(
+            texts,
+            normalize_embeddings=True,
+            **encode_kwargs,
+        )
         if hasattr(embeddings, "tolist"):
             embeddings = embeddings.tolist()
         return [
             embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
             for embedding in embeddings
         ]
+
+    def _query_prompt_name(self) -> str | None:
+        prompts = getattr(self._client, "prompts", None)
+        if isinstance(prompts, dict) and "query" in prompts:
+            return "query"
+        return None
+
+    def _format_query_text(self, text: str) -> str:
+        model_name = getattr(self, "_model_name", settings.embedding_model).lower()
+        if "octen-embedding" in model_name or "qwen3-embedding" in model_name:
+            return (
+                "Instruct: Given a web search query, retrieve relevant passages "
+                f"that answer the query\nQuery: {text}"
+            )
+        return text

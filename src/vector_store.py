@@ -37,7 +37,31 @@ class VectorStore:
             )
             print(f"[VectorStore] Created '{settings.qdrant_collection}' (dim={settings.embedding_dim})")
         else:
+            self._validate_collection_dim()
             print(f"[VectorStore] Found existing collection '{settings.qdrant_collection}'")
+
+    def _validate_collection_dim(self) -> None:
+        info = self._client.get_collection(settings.qdrant_collection)
+        vectors = info.config.params.vectors
+        actual_dim = self._extract_vector_size(vectors)
+        if actual_dim is not None and actual_dim != settings.embedding_dim:
+            raise RuntimeError(
+                f"Qdrant collection '{settings.qdrant_collection}' has vector size "
+                f"{actual_dim}, but EMBEDDING_DIM is {settings.embedding_dim}. "
+                "Recreate the collection or run ingestion with reset=true after changing "
+                "the embedding model."
+            )
+
+    @staticmethod
+    def _extract_vector_size(vectors) -> int | None:
+        if hasattr(vectors, "size"):
+            size = vectors.size
+            return size if isinstance(size, int) else None
+        if isinstance(vectors, dict):
+            first_vector = next(iter(vectors.values()), None)
+            size = getattr(first_vector, "size", None)
+            return size if isinstance(size, int) else None
+        return None
 
     def _get_collection_names(self) -> set[str]:
         last_error: Exception | None = None

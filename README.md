@@ -12,7 +12,7 @@
 | API | HTTP server на стандартной библиотеке Python | порт `8000` |
 | RAG-пайплайн | LangChain LCEL | prompt -> retriever -> generator |
 | Векторная БД | Qdrant | Docker-сервис `qdrant` |
-| Эмбеддинги | `BAAI/bge-m3` | 1024 измерения, русский и английский |
+| Эмбеддинги | `Octen/Octen-Embedding-4B` | 2560 измерений, 100+ языков |
 | Генерация | `Qwen/Qwen3-4B-Instruct-2507` | instruct-модель на 4B параметров |
 | Документы | LangChain loaders | `.txt`, `.md`, `.rst`, `.pdf` |
 
@@ -55,6 +55,8 @@ curl -X POST http://SERVER_IP:8000/ingest \
   -H "Content-Type: application/json" \
   -d '{"path":"data/documents","reset":true}'
 ```
+
+При смене `EMBEDDING_MODEL` или `EMBEDDING_DIM` коллекцию Qdrant нужно пересоздать. Для этого используйте `reset=true`, как в примере выше.
 
 6. Задайте вопрос:
 
@@ -186,7 +188,7 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 - `eval/results/ragas_YYYYMMDD_HHMMSS.csv` — табличный вывод RAGAS;
 - `eval/results/ragas_YYYYMMDD_HHMMSS.md` — короткий markdown-отчет.
 
-Метрики RAGAS являются LLM-based, поэтому при полном запуске будут загружены evaluator LLM и embeddings. По умолчанию используются те же Qwen и BGE-M3 через LangChain-обертки RAGAS.
+Метрики RAGAS являются LLM-based, поэтому при полном запуске будут загружены evaluator LLM и embeddings. По умолчанию используются те же Qwen и Octen-Embedding-4B через LangChain-обертки RAGAS.
 
 ## Настройки
 
@@ -199,8 +201,8 @@ docker compose run --rm rag-cli python evaluate_ragas.py
 | `QDRANT_HTTP_BIND` | `127.0.0.1` | адрес публикации HTTP-порта Qdrant |
 | `QDRANT_GRPC_BIND` | `127.0.0.1` | адрес публикации gRPC-порта Qdrant |
 | `QDRANT_COLLECTION` | `documents` | коллекция Qdrant |
-| `EMBEDDING_MODEL` | `BAAI/bge-m3` | модель эмбеддингов |
-| `EMBEDDING_DIM` | `1024` | размерность векторов |
+| `EMBEDDING_MODEL` | `Octen/Octen-Embedding-4B` | модель эмбеддингов |
+| `EMBEDDING_DIM` | `2560` | размерность векторов |
 | `GENERATOR_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | модель генерации |
 | `SYSTEM_PROMPT` | пусто | системный промпт; если пусто, используется промпт по умолчанию |
 | `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |

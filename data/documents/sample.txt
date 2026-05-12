@@ -34,10 +34,10 @@ of up to 32,768 tokens in the 1.5/2/2.5 series.
 
 Embedding Models
 
-For multilingual retrieval BGE-M3 (BAAI) is a strong choice. It produces
-1024-dimensional L2-normalised vectors and supports 100+ languages. For English-only
-workloads, bge-large-en-v1.5 (1024-dim) or bge-small-en-v1.5 (384-dim) offer
-better speed/quality trade-offs.
+For multilingual retrieval Octen-Embedding-4B is a strong choice. It is based on
+Qwen3-Embedding-4B, produces 2560-dimensional L2-normalised vectors, and supports
+100+ languages. Query embeddings can use the model's retrieval prompt for better
+semantic search quality.
 
 Chunking Strategies
 

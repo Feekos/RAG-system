@@ -1,4 +1,4 @@
-"""Tests for EmbeddingModel — LangChain HuggingFaceEmbeddings wrapper."""
+"""Tests for EmbeddingModel - LangChain HuggingFaceEmbeddings wrapper."""
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -12,7 +12,8 @@ class TestEmbeddingModel:
         """Mock HuggingFaceEmbeddings to avoid loading a real model."""
         with patch("src.embeddings.HuggingFaceEmbeddings") as mock_cls:
             instance = MagicMock()
-            instance._client.encode.return_value = [[0.1] * 1024, [0.2] * 1024]
+            instance._client.prompts = {"query": "Instruct: retrieve relevant passages\nQuery: "}
+            instance._client.encode.return_value = [[0.1] * 2560, [0.2] * 2560]
             mock_cls.return_value = instance
             yield mock_cls, instance
 
@@ -20,33 +21,35 @@ class TestEmbeddingModel:
         from src.embeddings import EmbeddingModel
 
         mock_cls, _ = mock_hf_embeddings
-        EmbeddingModel(model_name="BAAI/bge-m3")
+        EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         mock_cls.assert_called_once()
         call_kwargs = mock_cls.call_args.kwargs
-        assert call_kwargs["model_name"] == "BAAI/bge-m3"
+        assert call_kwargs["model_name"] == "Octen/Octen-Embedding-4B"
 
-    def test_init_sets_normalize_embeddings(self, mock_hf_embeddings):
+    def test_init_sets_normalize_embeddings_and_left_padding(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         mock_cls, _ = mock_hf_embeddings
-        EmbeddingModel(model_name="BAAI/bge-m3")
+        EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         call_kwargs = mock_cls.call_args.kwargs
         assert call_kwargs["encode_kwargs"]["normalize_embeddings"] is True
+        assert call_kwargs["model_kwargs"]["tokenizer_kwargs"]["padding_side"] == "left"
 
     def test_langchain_property_returns_embedding_wrapper(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         assert model.langchain is model
 
     def test_embed_documents_encodes_text_list(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         result = model.embed_documents(["doc 1", "doc 2"])
         mock_instance._client.encode.assert_called_once_with(
-            ["doc 1", "doc 2"], normalize_embeddings=True
+            ["doc 1", "doc 2"],
+            normalize_embeddings=True,
         )
         assert len(result) == 2
 
@@ -54,58 +57,75 @@ class TestEmbeddingModel:
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance._client.encode.return_value = [[0.5] * 1024]
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        mock_instance._client.encode.return_value = [[0.5] * 2560]
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         result = model.embed_query("test query")
         assert isinstance(result, list)
-        assert len(result) == 1024
+        assert len(result) == 2560
 
-    def test_bge_model_adds_query_prefix(self, mock_hf_embeddings):
-        """BGE models require a specific prefix for asymmetric retrieval queries."""
+    def test_query_uses_model_query_prompt_when_available(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance._client.encode.return_value = [[0.1] * 1024]
+        mock_instance._client.encode.return_value = [[0.1] * 2560]
 
-        with patch("src.embeddings.settings") as mock_settings:
-            mock_settings.embedding_model = "BAAI/bge-m3"
-            model = EmbeddingModel.__new__(EmbeddingModel)
-            model._client = mock_instance._client
-            model.embed_query("Что такое RAG?")
+        model = EmbeddingModel.__new__(EmbeddingModel)
+        model._client = mock_instance._client
+        model._model_name = "intfloat/multilingual-e5-large"
+        model.embed_query("What is RAG?")
 
-        call_args = mock_instance._client.encode.call_args[0][0][0]
-        assert "Represent this sentence" in call_args
-        assert "Что такое RAG?" in call_args
+        mock_instance._client.encode.assert_called_once_with(
+            ["What is RAG?"],
+            normalize_embeddings=True,
+            prompt_name="query",
+        )
 
-    def test_non_bge_model_does_not_add_prefix(self, mock_hf_embeddings):
+    def test_query_prompt_is_omitted_when_unavailable(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance._client.encode.return_value = [[0.1] * 1024]
+        mock_instance._client.prompts = {}
+        mock_instance._client.encode.return_value = [[0.1] * 2560]
 
-        with patch("src.embeddings.settings") as mock_settings:
-            mock_settings.embedding_model = "intfloat/multilingual-e5-large"
-            model = EmbeddingModel.__new__(EmbeddingModel)
-            model._client = mock_instance._client
-            model.embed_query("What is RAG?")
+        model = EmbeddingModel.__new__(EmbeddingModel)
+        model._client = mock_instance._client
+        model.embed_query("What is RAG?")
 
-        call_args = mock_instance._client.encode.call_args[0][0][0]
-        assert call_args == "What is RAG?"
+        mock_instance._client.encode.assert_called_once_with(
+            ["What is RAG?"],
+            normalize_embeddings=True,
+        )
+
+    def test_octen_query_uses_instruction_fallback_when_prompt_unavailable(self, mock_hf_embeddings):
+        from src.embeddings import EmbeddingModel
+
+        _, mock_instance = mock_hf_embeddings
+        mock_instance._client.prompts = {}
+        mock_instance._client.encode.return_value = [[0.1] * 2560]
+
+        model = EmbeddingModel.__new__(EmbeddingModel)
+        model._client = mock_instance._client
+        model._model_name = "Octen/Octen-Embedding-4B"
+        model.embed_query("What is RAG?")
+
+        call_text = mock_instance._client.encode.call_args.args[0][0]
+        assert call_text.startswith("Instruct:")
+        assert call_text.endswith("What is RAG?")
 
     def test_embed_query_for_russian_text(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance._client.encode.return_value = [[0.3] * 1024]
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        mock_instance._client.encode.return_value = [[0.3] * 2560]
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
         result = model.embed_query("Что такое векторная база данных?")
-        assert len(result) == 1024
+        assert len(result) == 2560
         mock_instance._client.encode.assert_called_once()
 
     def test_embed_query_rejects_non_string_input(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
 
         with pytest.raises(TypeError, match="Query text must be str"):
             model.embed_query({"text": "What is RAG?"})  # type: ignore[arg-type]
@@ -113,7 +133,7 @@ class TestEmbeddingModel:
     def test_embed_documents_rejects_single_string(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
-        model = EmbeddingModel(model_name="BAAI/bge-m3")
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-4B")
 
         with pytest.raises(TypeError, match="Document texts must be a list of str"):
             model.embed_documents("doc 1")  # type: ignore[arg-type]

@@ -20,7 +20,7 @@ if "HF_HOME" in os.environ:
 
 _BANNER = """
 ================================================
-  RAG ver. 0.1 | Qwen-4B + Qdrant + BGE-M3
+  RAG ver. 0.2 | Qwen-4B + Qdrant + Octen-Embedding-4B
 ================================================
 Система поддерживает следующие языки: EN, RU.
 Комманды:  /stats  /quit
@@ -33,13 +33,13 @@ def _run_interactive(pipeline, stream: bool) -> None:
         try:
             question = input("Вы: ").strip()
         except (KeyboardInterrupt, EOFError):
-            print("\Пока!")
+            print("\Чат завершен!")
             break
 
         if not question:
             continue
         if question.lower() in ("/quit", "/exit", "quit", "exit"):
-            print("Пока!")
+            print("Чат завершен!")
             break
         if question.lower() == "/stats":
             import json

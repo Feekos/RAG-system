@@ -195,7 +195,7 @@ class TestStats:
         p, *_ = pipeline
         with patch("src.rag_pipeline.settings") as mock_settings:
             mock_settings.qdrant_collection = "documents"
-            mock_settings.embedding_model = "BAAI/bge-m3"
+            mock_settings.embedding_model = "Octen/Octen-Embedding-4B"
             mock_settings.generator_model = "Qwen/Qwen1.5-4B-Chat"
             result = p.stats()
         assert isinstance(result, dict)
@@ -204,7 +204,7 @@ class TestStats:
         p, *_ = pipeline
         with patch("src.rag_pipeline.settings") as mock_settings:
             mock_settings.qdrant_collection = "documents"
-            mock_settings.embedding_model = "BAAI/bge-m3"
+            mock_settings.embedding_model = "Octen/Octen-Embedding-4B"
             mock_settings.generator_model = "Qwen/Qwen1.5-4B-Chat"
             result = p.stats()
         assert "collection" in result
@@ -217,7 +217,7 @@ class TestStats:
         mock_store.count.return_value = 99
         with patch("src.rag_pipeline.settings") as mock_settings:
             mock_settings.qdrant_collection = "documents"
-            mock_settings.embedding_model = "BAAI/bge-m3"
+            mock_settings.embedding_model = "Octen/Octen-Embedding-4B"
             mock_settings.generator_model = "Qwen/Qwen1.5-4B-Chat"
             result = p.stats()
         assert result["total_chunks"] == 99

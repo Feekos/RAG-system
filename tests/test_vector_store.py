@@ -41,7 +41,7 @@ class TestEnsureCollection:
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
             mock_settings.qdrant_collection = "documents"
-            mock_settings.embedding_dim = 1024
+            mock_settings.embedding_dim = 2560
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -68,7 +68,7 @@ class TestEnsureCollection:
             mock_settings.qdrant_collection = "documents"
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
-            mock_settings.embedding_dim = 1024
+            mock_settings.embedding_dim = 2560
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -85,6 +85,34 @@ class TestEnsureCollection:
             call_kwargs = mock_client.create_collection.call_args.kwargs
             assert call_kwargs["vectors_config"].distance == Distance.COSINE
 
+    def test_existing_collection_dimension_mismatch_raises(self):
+        with (
+            patch("src.vector_store.QdrantClient") as mock_client_cls,
+            patch("src.vector_store.QdrantVectorStore"),
+            patch("src.vector_store.settings") as mock_settings,
+        ):
+            mock_settings.qdrant_collection = "documents"
+            mock_settings.qdrant_host = "localhost"
+            mock_settings.qdrant_port = 6333
+            mock_settings.embedding_dim = 2560
+            mock_settings.top_k = 5
+
+            collection_info = MagicMock()
+            collection_info.config.params.vectors.size = 1024
+
+            mock_client = MagicMock()
+            mock_client.get_collections.return_value.collections = [_make_collection("documents")]
+            mock_client.get_collection.return_value = collection_info
+            mock_client_cls.return_value = mock_client
+
+            mock_embeddings = MagicMock()
+            mock_embeddings.langchain = MagicMock()
+
+            from src.vector_store import VectorStore
+
+            with pytest.raises(RuntimeError, match="vector size 1024"):
+                VectorStore(mock_embeddings)
+
 
 class TestAddDocuments:
     @pytest.fixture
@@ -97,7 +125,7 @@ class TestAddDocuments:
             mock_settings.qdrant_collection = "documents"
             mock_settings.qdrant_host = "localhost"
             mock_settings.qdrant_port = 6333
-            mock_settings.embedding_dim = 1024
+            mock_settings.embedding_dim = 2560
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
@@ -151,7 +179,7 @@ class TestConnectionParameters:
             mock_settings.qdrant_host = "qdrant-server"
             mock_settings.qdrant_port = 6333
             mock_settings.qdrant_collection = "my_collection"
-            mock_settings.embedding_dim = 1024
+            mock_settings.embedding_dim = 2560
             mock_settings.top_k = 5
 
             mock_client = MagicMock()
