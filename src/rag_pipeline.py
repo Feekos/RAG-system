@@ -160,11 +160,20 @@ class RAGPipeline:
     def _build_retrieval_query(cls, question: str, history: list[tuple[str, str]]) -> str:
         if not history:
             return question
+        history_summary = cls._format_retrieval_history(history)
         return (
             "Conversation history:\n"
-            f"{cls._format_chat_history(history)}\n\n"
+            f"{history_summary}\n\n"
             f"Current question: {question}"
         )
+
+    @staticmethod
+    def _format_retrieval_history(history: list[tuple[str, str]]) -> str:
+        parts = []
+        for index, (question, answer) in enumerate(history, 1):
+            short_answer = " ".join(str(answer).split())[:500]
+            parts.append(f"[{index}] User: {question}\n[{index}] Assistant summary: {short_answer}")
+        return "\n\n".join(parts)
 
     # ------------------------------------------------------------------ stats
 

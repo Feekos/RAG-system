@@ -25,7 +25,10 @@ class EmbeddingModel(Embeddings):
             name,
             trust_remote_code=True,
             padding_side="left",
+            use_fast=False,
         )
+        if self._tokenizer.pad_token is None:
+            self._tokenizer.pad_token = self._tokenizer.eos_token
         self._model = AutoModel.from_pretrained(
             name,
             trust_remote_code=True,
@@ -61,19 +64,30 @@ class EmbeddingModel(Embeddings):
         if not texts:
             return []
 
-        batch = self._tokenizer(
-            texts,
-            padding=True,
-            truncation=True,
-            max_length=8192,
-            return_tensors="pt",
-        )
+        batch = self._tokenize_texts(texts)
         batch = {key: value.to(self._device) for key, value in batch.items()}
         with torch.no_grad():
             outputs = self._model(**batch)
             embeddings = _last_token_pool(outputs.last_hidden_state, batch["attention_mask"])
             embeddings = F.normalize(embeddings, p=2, dim=1)
         return embeddings.detach().cpu().float().tolist()
+
+    def _tokenize_texts(self, texts: List[str]) -> dict:
+        encoded = [
+            self._tokenizer(
+                text,
+                padding=False,
+                truncation=True,
+                max_length=8192,
+                return_attention_mask=True,
+            )
+            for text in texts
+        ]
+        return self._tokenizer.pad(
+            encoded,
+            padding=True,
+            return_tensors="pt",
+        )
 
     def _format_query_text(self, text: str) -> str:
         model_name = getattr(self, "_model_name", settings.embedding_model).lower()
