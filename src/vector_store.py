@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import time
 from typing import List
 
@@ -45,6 +46,20 @@ class VectorStore:
         vectors = info.config.params.vectors
         actual_dim = self._extract_vector_size(vectors)
         if actual_dim is not None and actual_dim != settings.embedding_dim:
+            if os.getenv("RAGAS_RESET_INDEX", "").lower() in {"1", "true", "yes", "on"}:
+                self._client.delete_collection(settings.qdrant_collection)
+                self._client.create_collection(
+                    collection_name=settings.qdrant_collection,
+                    vectors_config=VectorParams(
+                        size=settings.embedding_dim,
+                        distance=Distance.COSINE,
+                    ),
+                )
+                print(
+                    f"[VectorStore] Recreated '{settings.qdrant_collection}' "
+                    f"(dim={settings.embedding_dim})"
+                )
+                return
             raise RuntimeError(
                 f"Qdrant collection '{settings.qdrant_collection}' has vector size "
                 f"{actual_dim}, but EMBEDDING_DIM is {settings.embedding_dim}. "

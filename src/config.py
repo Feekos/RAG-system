@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     ragas_config_path: str = Field("eval/ragas_config.json", alias="RAGAS_CONFIG_PATH")
     ragas_testset_path: str = Field("eval/testset.jsonl", alias="RAGAS_TESTSET_PATH")
     ragas_output_dir: str = Field("eval/results", alias="RAGAS_OUTPUT_DIR")
+    ragas_reset_index: bool = Field(False, alias="RAGAS_RESET_INDEX")
 
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 

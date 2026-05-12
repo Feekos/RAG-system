@@ -204,7 +204,7 @@ python main.py --query "Что такое RAG?"
 
 ## RAGAS-оценка
 
-В проект добавлен отдельный evaluation-пайплайн на RAGAS. Он берет вопросы из `eval/testset.jsonl`, прогоняет их через текущий RAG, передает в RAGAS поля `user_input`, `response`, `retrieved_contexts`, `reference` и сохраняет отчеты в `eval/results`.
+В проекте также реализован отдельный evaluation-пайплайн на RAGAS. Он берет вопросы из `eval/testset.jsonl`, прогоняет их через текущий RAG, передает в RAGAS поля `user_input`, `response`, `retrieved_contexts`, `reference` и сохраняет отчеты в `eval/results`.
 
 Конфигурация находится в `eval/ragas_config.json`:
 
@@ -218,7 +218,19 @@ python main.py --query "Что такое RAG?"
   ],
   "rag": {
     "lazy_generator": true,
-    "top_k": 5
+    "top_k": 5,
+    "index_path": "data/documents",
+    "reset_index": false
+  },
+  "experiments": {
+    "top_k": [3, 5],
+    "chunk_size": [384, 512],
+    "chunk_overlap": [48, 64],
+    "embedding_model": ["Octen/Octen-Embedding-0.6B"],
+    "embedding_dim": [1024],
+    "generator_model": ["Qwen/Qwen3-4B-Instruct-2507"],
+    "max_new_tokens": [384],
+    "temperature": [0.0]
   }
 }
 ```
@@ -229,13 +241,21 @@ python main.py --query "Что такое RAG?"
 python evaluate_ragas.py
 python evaluate_ragas.py --config eval/ragas_config.json
 python evaluate_ragas.py --metrics faithfulness answer_relevancy --top-k 3
+python evaluate_ragas.py --index-path data/documents --reset-index
+python evaluate_ragas.py --experiments
 ```
 
-Запуск внутри Docker:
+Запуск внутри CLI Docker:
 
 ```bash
 docker compose run --rm rag-cli python evaluate_ragas.py
+docker compose run --rm rag-cli python evaluate_ragas.py --index-path data/documents --reset-index
+docker compose run --rm rag-cli python evaluate_ragas.py --experiments
 ```
+
+Для подбора продовой комбинации используйте `experiments` в `eval/ragas_config.json`. Это Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. Если меняете `chunk_size`, `chunk_overlap`, `embedding_model` или `embedding_dim`, включите `reset_index=true` или передайте `--reset-index`, иначе будет оцениваться старая коллекция Qdrant.
+
+Параметры для перебора: `top_k`, `chunk_size`, `chunk_overlap`, `embedding_model`, `embedding_dim`, `generator_model`, `max_new_tokens`, `temperature`, `torch_dtype`, `qdrant_collection`.
 
 Результаты сохраняются в трех форматах:
 

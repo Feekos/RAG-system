@@ -15,7 +15,19 @@
   },
   "rag": {
     "lazy_generator": true,
-    "top_k": 5
+    "top_k": 5,
+    "index_path": "data/documents",
+    "reset_index": false
+  },
+  "experiments": {
+    "top_k": [3, 5],
+    "chunk_size": [384, 512],
+    "chunk_overlap": [48, 64],
+    "embedding_model": ["Octen/Octen-Embedding-0.6B"],
+    "embedding_dim": [1024],
+    "generator_model": ["Qwen/Qwen3-4B-Instruct-2507"],
+    "max_new_tokens": [384],
+    "temperature": [0.0]
   },
   "outputs": {
     "json": true,

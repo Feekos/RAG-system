@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import csv
+import itertools
 import json
+import os
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -27,10 +30,15 @@ class RagasRunConfig:
     output_dir: Path
     metrics: List[str]
     top_k: int | None = None
+    index_path: Path | None = None
+    reset_index: bool = False
     lazy_generator: bool = True
     write_json: bool = True
     write_csv: bool = True
     write_markdown: bool = True
+    run_name: str | None = None
+    metadata: dict[str, Any] | None = None
+    experiments: dict[str, List[Any]] | None = None
 
 
 def load_ragas_config(path: str | Path | None = None) -> RagasRunConfig:
@@ -41,16 +49,20 @@ def load_ragas_config(path: str | Path | None = None) -> RagasRunConfig:
 
     rag_cfg = raw.get("rag", {})
     outputs_cfg = raw.get("outputs", {})
+    experiments_cfg = raw.get("experiments", {})
 
     return RagasRunConfig(
         testset_path=Path(raw.get("testset_path", settings.ragas_testset_path)),
         output_dir=Path(raw.get("output_dir", settings.ragas_output_dir)),
         metrics=list(raw.get("metrics", DEFAULT_METRICS)),
         top_k=rag_cfg.get("top_k"),
+        index_path=Path(rag_cfg["index_path"]) if rag_cfg.get("index_path") else None,
+        reset_index=bool(rag_cfg.get("reset_index", settings.ragas_reset_index)),
         lazy_generator=bool(rag_cfg.get("lazy_generator", True)),
         write_json=bool(outputs_cfg.get("json", True)),
         write_csv=bool(outputs_cfg.get("csv", True)),
         write_markdown=bool(outputs_cfg.get("markdown", True)),
+        experiments=_normalize_experiment_matrix(experiments_cfg),
     )
 
 
@@ -107,10 +119,23 @@ def run_ragas_evaluation(
 ) -> dict[str, Path | dict[str, float]]:
     evaluate, Dataset = _import_ragas_runtime()
     rows = load_testset(config.testset_path)
-    pipeline = pipeline or RAGPipeline.create(
-        lazy_generator=config.lazy_generator,
-        top_k=config.top_k,
-    )
+    with _temporary_env({"RAGAS_RESET_INDEX": "true"} if config.reset_index else {}):
+        pipeline = pipeline or RAGPipeline.create(
+            lazy_generator=config.lazy_generator,
+            top_k=config.top_k,
+        )
+        if config.index_path is not None:
+            if config.reset_index:
+                pipeline.reset_collection()
+                pipeline = RAGPipeline.create(
+                    lazy_generator=config.lazy_generator,
+                    top_k=config.top_k,
+                )
+            target = config.index_path
+            if target.is_dir():
+                pipeline.ingest_directory(str(target))
+            else:
+                pipeline.ingest_file(str(target))
     samples = build_ragas_samples(pipeline, rows)
 
     evaluator_llm = evaluator_llm or _build_evaluator_llm()
@@ -132,6 +157,45 @@ def run_ragas_evaluation(
     return {"summary": summary, **paths}
 
 
+def run_ragas_experiments(config: RagasRunConfig) -> dict[str, Any]:
+    experiments = list(_iter_experiments(config.experiments or {}))
+    if not experiments:
+        return run_ragas_evaluation(config)
+
+    config.output_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    leaderboard: list[dict[str, Any]] = []
+
+    for index, overrides in enumerate(experiments, 1):
+        run_name = _format_run_name(index, overrides)
+        run_config = _copy_config_for_experiment(config, run_name, overrides)
+        settings_overrides, top_k = _split_experiment_overrides(overrides)
+        if top_k is not None:
+            run_config.top_k = top_k
+
+        print(f"[RAGAS] Experiment {index}/{len(experiments)}: {run_name}")
+        with _temporary_settings(settings_overrides), _temporary_env(
+            {"RAGAS_RESET_INDEX": "true"} if run_config.reset_index else {}
+        ):
+            result = run_ragas_evaluation(run_config)
+
+        row = {
+            "run_name": run_name,
+            **overrides,
+            **{f"score_{key}": value for key, value in result["summary"].items()},
+        }
+        for key, value in result.items():
+            if key != "summary":
+                row[f"path_{key}"] = str(value)
+        leaderboard.append(row)
+
+    leaderboard_path = config.output_dir / f"ragas_experiments_{stamp}.csv"
+    _write_csv(leaderboard_path, leaderboard)
+    summary_path = config.output_dir / f"ragas_experiments_{stamp}.md"
+    summary_path.write_text(_render_leaderboard_markdown(leaderboard), encoding="utf-8")
+    return {"leaderboard_csv": leaderboard_path, "leaderboard_markdown": summary_path, "runs": leaderboard}
+
+
 def write_ragas_outputs(
     config: RagasRunConfig,
     samples: List[dict[str, Any]],
@@ -140,29 +204,32 @@ def write_ragas_outputs(
 ) -> dict[str, Path]:
     config.output_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"ragas_{_slug(config.run_name)}_{stamp}" if config.run_name else f"ragas_{stamp}"
     written: dict[str, Path] = {}
 
     payload = {
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "metrics": config.metrics,
+        "run_name": config.run_name,
+        "metadata": config.metadata or {},
         "summary": summary,
         "samples": samples,
         "results": result_rows,
     }
 
     if config.write_json:
-        path = config.output_dir / f"ragas_{stamp}.json"
+        path = config.output_dir / f"{prefix}.json"
         path.write_text(json.dumps(_to_jsonable(payload), ensure_ascii=False, indent=2), encoding="utf-8")
         written["json"] = path
 
     if config.write_csv:
-        path = config.output_dir / f"ragas_{stamp}.csv"
+        path = config.output_dir / f"{prefix}.csv"
         _write_csv(path, result_rows)
         written["csv"] = path
 
     if config.write_markdown:
-        path = config.output_dir / f"ragas_{stamp}.md"
-        path.write_text(_render_markdown(summary, result_rows), encoding="utf-8")
+        path = config.output_dir / f"{prefix}.md"
+        path.write_text(_render_markdown(summary, result_rows, config), encoding="utf-8")
         written["markdown"] = path
 
     return written
@@ -287,8 +354,20 @@ def _write_csv(path: Path, rows: List[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
-def _render_markdown(summary: dict[str, float], rows: List[dict[str, Any]]) -> str:
+def _render_markdown(
+    summary: dict[str, float],
+    rows: List[dict[str, Any]],
+    config: RagasRunConfig | None = None,
+) -> str:
     lines = ["# RAGAS Evaluation Results", ""]
+    if config and (config.run_name or config.metadata):
+        lines.append("## Run")
+        lines.append("")
+        if config.run_name:
+            lines.append(f"- `run_name`: {config.run_name}")
+        for key, value in (config.metadata or {}).items():
+            lines.append(f"- `{key}`: {value}")
+        lines.append("")
     lines.append("## Summary")
     lines.append("")
     if summary:
@@ -327,3 +406,129 @@ def _to_jsonable(value: Any) -> Any:
         except Exception:
             pass
     return value
+
+
+def _normalize_experiment_matrix(raw: Any) -> dict[str, List[Any]] | None:
+    if not raw:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError("'experiments' must be an object of parameter lists.")
+    matrix: dict[str, List[Any]] = {}
+    for key, value in raw.items():
+        if value is None:
+            continue
+        matrix[key] = value if isinstance(value, list) else [value]
+    return matrix
+
+
+def _iter_experiments(matrix: dict[str, List[Any]]) -> Iterable[dict[str, Any]]:
+    if not matrix:
+        return []
+    keys = list(matrix.keys())
+    values = [matrix[key] for key in keys]
+    return (dict(zip(keys, combination)) for combination in itertools.product(*values))
+
+
+def _copy_config_for_experiment(
+    config: RagasRunConfig,
+    run_name: str,
+    overrides: dict[str, Any],
+) -> RagasRunConfig:
+    return RagasRunConfig(
+        testset_path=config.testset_path,
+        output_dir=config.output_dir,
+        metrics=list(config.metrics),
+        top_k=config.top_k,
+        index_path=config.index_path,
+        reset_index=config.reset_index,
+        lazy_generator=config.lazy_generator,
+        write_json=config.write_json,
+        write_csv=config.write_csv,
+        write_markdown=config.write_markdown,
+        run_name=run_name,
+        metadata=overrides,
+        experiments=None,
+    )
+
+
+def _split_experiment_overrides(overrides: dict[str, Any]) -> tuple[dict[str, Any], int | None]:
+    top_k = overrides.get("top_k")
+    allowed_settings = {
+        "embedding_model",
+        "embedding_dim",
+        "generator_model",
+        "max_new_tokens",
+        "temperature",
+        "torch_dtype",
+        "chunk_size",
+        "chunk_overlap",
+        "qdrant_collection",
+    }
+    return (
+        {key: value for key, value in overrides.items() if key in allowed_settings},
+        int(top_k) if top_k is not None else None,
+    )
+
+
+@contextmanager
+def _temporary_settings(overrides: dict[str, Any]):
+    previous = {key: getattr(settings, key) for key in overrides}
+    try:
+        for key, value in overrides.items():
+            setattr(settings, key, value)
+        yield
+    finally:
+        for key, value in previous.items():
+            setattr(settings, key, value)
+
+
+@contextmanager
+def _temporary_env(overrides: dict[str, str]):
+    previous = {key: os.environ.get(key) for key in overrides}
+    try:
+        for key, value in overrides.items():
+            os.environ[key] = value
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+def _format_run_name(index: int, overrides: dict[str, Any]) -> str:
+    parts = [f"{key}-{value}" for key, value in sorted(overrides.items())]
+    return f"{index:03d}_" + "_".join(parts)
+
+
+def _slug(value: str | None) -> str:
+    if not value:
+        return "run"
+    chars = [char if char.isalnum() else "_" for char in value.lower()]
+    return "_".join("".join(chars).split("_"))[:120]
+
+
+def _render_leaderboard_markdown(rows: list[dict[str, Any]]) -> str:
+    lines = ["# RAGAS Experiment Leaderboard", ""]
+    if not rows:
+        lines.append("No experiment rows were produced.")
+        return "\n".join(lines)
+
+    columns = list(dict.fromkeys(key for row in rows for key in row.keys()))
+    score_columns = [column for column in columns if column.startswith("score_")]
+    display_columns = ["run_name"] + [
+        column for column in columns if column not in {"run_name"} and not column.startswith("path_")
+    ]
+    if score_columns:
+        display_columns = ["run_name"] + score_columns + [
+            column
+            for column in display_columns
+            if column != "run_name" and column not in score_columns
+        ]
+
+    lines.append("| " + " | ".join(display_columns) + " |")
+    lines.append("|" + "|".join("---" for _ in display_columns) + "|")
+    for row in rows:
+        lines.append("| " + " | ".join(str(row.get(column, "")) for column in display_columns) + " |")
+    return "\n".join(lines)
