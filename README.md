@@ -73,21 +73,76 @@ curl http://SERVER_IP:8000/health
 curl http://SERVER_IP:8000/stats
 ```
 
+Если API открывается через `localhost`, но не открывается через реальный IP сервера, проверьте публикацию порта и сетевые правила:
+
+```bash
+grep '^RAG_API_BIND=' .env
+docker compose ps
+docker compose port rag 8000
+ss -ltnp | grep ':8000'
+```
+
+Для внешнего доступа в `.env` должно быть `RAG_API_BIND=0.0.0.0`, а в `docker compose ps` порт должен выглядеть примерно как `0.0.0.0:8000->8000/tcp`, а не `127.0.0.1:8000->8000/tcp`. После изменения `.env` пересоздайте сервис:
+
+```bash
+docker compose up -d --force-recreate rag
+```
+
+Если порт опубликован на `0.0.0.0`, но внешний IP все равно не отвечает, откройте порт `8000/tcp` в firewall сервера и в правилах облачного провайдера/security group.
+
 
 ## CLI внутри Docker
 
-Интерактивный режим оставлен через compose profile `cli`:
+Интерактивный режим работает через compose profile `cli`:
 
 ```bash
 docker compose run --rm rag-cli
+```
+
+Запускает интерактивный CLI-чат.
+
+```bash
 docker compose run --rm rag-cli python main.py --query "What is Qdrant?"
+```
+
+Выполняет один вопрос и сразу завершает контейнер.
+
+```bash
 docker compose run --rm rag-cli python ingest.py --reset data/documents
 ```
+
+Пересоздает коллекцию Qdrant и заново индексирует документы из `data/documents`.
 
 Можно также переопределять команду основного сервиса:
 
 ```bash
 docker compose run --rm rag python main.py --query "Что хранит Qdrant?"
+```
+
+## Обновление Docker после изменений
+
+Если изменился только `.env`, пересобирать образ не нужно. Достаточно пересоздать сервис, чтобы Docker Compose заново прочитал переменные окружения:
+
+```bash
+docker compose up -d --force-recreate rag
+```
+
+Для CLI новый `.env` подхватывается при следующем запуске:
+
+```bash
+docker compose --profile cli run --rm rag-cli
+```
+
+Если менялись код, `Dockerfile` или `requirements.txt`, пересоберите образ без кеша:
+
+```bash
+docker compose build --no-cache rag-cli rag
+```
+
+Если менялись `EMBEDDING_MODEL` или `EMBEDDING_DIM`, после пересборки нужно пересоздать коллекцию и переиндексировать документы:
+
+```bash
+docker compose --profile cli run --rm rag-cli python ingest.py --reset data/documents
 ```
 
 ## Локальный запуск без контейнера приложения
