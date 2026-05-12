@@ -12,8 +12,7 @@ class TestEmbeddingModel:
         """Mock HuggingFaceEmbeddings to avoid loading a real model."""
         with patch("src.embeddings.HuggingFaceEmbeddings") as mock_cls:
             instance = MagicMock()
-            instance.embed_query.return_value = [0.1] * 1024
-            instance.embed_documents.return_value = [[0.1] * 1024, [0.2] * 1024]
+            instance._client.encode.return_value = [[0.1] * 1024, [0.2] * 1024]
             mock_cls.return_value = instance
             yield mock_cls, instance
 
@@ -40,20 +39,22 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="BAAI/bge-m3")
         assert model.langchain is model
 
-    def test_embed_documents_delegates_to_huggingface_embeddings(self, mock_hf_embeddings):
+    def test_embed_documents_encodes_text_list(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
         model = EmbeddingModel(model_name="BAAI/bge-m3")
         result = model.embed_documents(["doc 1", "doc 2"])
-        mock_instance.embed_documents.assert_called_once_with(["doc 1", "doc 2"])
+        mock_instance._client.encode.assert_called_once_with(
+            ["doc 1", "doc 2"], normalize_embeddings=True
+        )
         assert len(result) == 2
 
     def test_embed_query_returns_list(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance.embed_query.return_value = [0.5] * 1024
+        mock_instance._client.encode.return_value = [[0.5] * 1024]
         model = EmbeddingModel(model_name="BAAI/bge-m3")
         result = model.embed_query("test query")
         assert isinstance(result, list)
@@ -64,15 +65,15 @@ class TestEmbeddingModel:
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance.embed_query.return_value = [0.1] * 1024
+        mock_instance._client.encode.return_value = [[0.1] * 1024]
 
         with patch("src.embeddings.settings") as mock_settings:
             mock_settings.embedding_model = "BAAI/bge-m3"
             model = EmbeddingModel.__new__(EmbeddingModel)
-            model._lc = mock_instance
+            model._client = mock_instance._client
             model.embed_query("Что такое RAG?")
 
-        call_args = mock_instance.embed_query.call_args[0][0]
+        call_args = mock_instance._client.encode.call_args[0][0][0]
         assert "Represent this sentence" in call_args
         assert "Что такое RAG?" in call_args
 
@@ -80,26 +81,26 @@ class TestEmbeddingModel:
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance.embed_query.return_value = [0.1] * 1024
+        mock_instance._client.encode.return_value = [[0.1] * 1024]
 
         with patch("src.embeddings.settings") as mock_settings:
             mock_settings.embedding_model = "intfloat/multilingual-e5-large"
             model = EmbeddingModel.__new__(EmbeddingModel)
-            model._lc = mock_instance
+            model._client = mock_instance._client
             model.embed_query("What is RAG?")
 
-        call_args = mock_instance.embed_query.call_args[0][0]
+        call_args = mock_instance._client.encode.call_args[0][0][0]
         assert call_args == "What is RAG?"
 
     def test_embed_query_for_russian_text(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel
 
         _, mock_instance = mock_hf_embeddings
-        mock_instance.embed_query.return_value = [0.3] * 1024
+        mock_instance._client.encode.return_value = [[0.3] * 1024]
         model = EmbeddingModel(model_name="BAAI/bge-m3")
         result = model.embed_query("Что такое векторная база данных?")
         assert len(result) == 1024
-        mock_instance.embed_query.assert_called_once()
+        mock_instance._client.encode.assert_called_once()
 
     def test_embed_query_rejects_non_string_input(self, mock_hf_embeddings):
         from src.embeddings import EmbeddingModel

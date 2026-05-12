@@ -24,6 +24,7 @@ class EmbeddingModel(Embeddings):
             model_kwargs={"device": _auto_device()},
             encode_kwargs={"normalize_embeddings": True},
         )
+        self._client = self._lc._client
         self._model_name = name
 
     @property
@@ -43,7 +44,7 @@ class EmbeddingModel(Embeddings):
         return [cls._ensure_text(value, "Document text") for value in values]
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        return self._lc.embed_documents(self._ensure_texts(texts))
+        return self._encode_texts(self._ensure_texts(texts))
 
     def embed_query(self, text: str) -> List[float]:
         text = self._ensure_text(text, "Query text")
@@ -51,4 +52,13 @@ class EmbeddingModel(Embeddings):
         model_name = getattr(self, "_model_name", settings.embedding_model)
         if "bge" in model_name.lower():
             text = f"Represent this sentence for searching relevant passages: {text}"
-        return self._lc.embed_query(text)
+        return self._encode_texts([text])[0]
+
+    def _encode_texts(self, texts: List[str]) -> List[List[float]]:
+        embeddings = self._client.encode(texts, normalize_embeddings=True)
+        if hasattr(embeddings, "tolist"):
+            embeddings = embeddings.tolist()
+        return [
+            embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
+            for embedding in embeddings
+        ]
