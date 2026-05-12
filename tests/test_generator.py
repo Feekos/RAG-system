@@ -36,6 +36,9 @@ class TestBuildRagPrompt:
     def test_human_template_has_question_placeholder(self):
         assert "{question}" in self.human_template
 
+    def test_human_template_has_chat_history_placeholder(self):
+        assert "{chat_history}" in self.human_template
+
     def test_system_prompt_mentions_language_matching(self):
         """System prompt must instruct model to reply in user's language for multilingual support."""
         assert "языке" in self.system.lower()

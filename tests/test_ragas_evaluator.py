@@ -82,7 +82,7 @@ def test_build_ragas_samples_calls_pipeline_query():
         [{"user_input": "What is RAG?", "reference": "Reference answer."}],
     )
 
-    pipeline.query.assert_called_once_with("What is RAG?", stream=False)
+    pipeline.query.assert_called_once_with("What is RAG?", stream=False, use_history=False)
     assert samples[0]["response"] == "RAG combines retrieval and generation."
     assert samples[0]["retrieved_contexts"] == ["RAG retrieves context."]
     assert samples[0]["reference"] == "Reference answer."

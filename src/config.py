@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # Retrieval
     top_k: int = Field(5, alias="TOP_K")
+    context_window_turns: int = Field(3, alias="CONTEXT_WINDOW_TURNS")
 
     # Chunking
     chunk_size: int = Field(512, alias="CHUNK_SIZE")

@@ -99,13 +99,15 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
         question = str(payload.get("question", "")).strip()
         if not question:
             raise ValueError("Field 'question' must be a non-empty string.")
+        session_id = str(payload.get("session_id", "default")).strip() or "default"
 
-        response = _get_pipeline().query(question, stream=False)
+        response = _get_pipeline().query(question, stream=False, session_id=session_id)
         self._write_json(
             {
                 "question": response.question,
                 "answer": response.answer,
                 "sources": response.sources,
+                "session_id": session_id,
             }
         )
 

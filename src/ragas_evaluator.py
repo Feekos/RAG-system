@@ -97,7 +97,7 @@ def build_ragas_samples(
 ) -> List[dict[str, Any]]:
     samples: List[dict[str, Any]] = []
     for row in testset_rows:
-        response = pipeline.query(row["user_input"], stream=False)
+        response = pipeline.query(row["user_input"], stream=False, use_history=False)
         retrieved_contexts = [doc.page_content for doc in response.retrieved_docs]
         sample = {
             "user_input": row["user_input"],

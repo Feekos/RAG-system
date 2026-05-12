@@ -20,6 +20,9 @@ _SYSTEM_PROMPT = """\
 Отвечай кратко и законченными предложениями. Не обрывай ответ на середине предложения."""
 
 _RAG_HUMAN_TEMPLATE = """\
+Conversation history:
+{chat_history}
+
 Context:
 {context}
 
@@ -32,7 +35,7 @@ def build_rag_prompt() -> ChatPromptTemplate:
             ("system", _get_system_prompt()),
             ("human", _RAG_HUMAN_TEMPLATE),
         ]
-    )
+    ).partial(chat_history="No prior conversation.")
 
 
 def _get_system_prompt() -> str:

@@ -63,11 +63,17 @@ class TestApiHandler:
         pipeline.query.return_value = response
 
         with patch("src.api_server._get_pipeline", return_value=pipeline):
-            handler._handle_query({"question": "What is RAG?"})
+            handler._handle_query({"question": "What is RAG?", "session_id": "test-session"})
 
         assert body["payload"] == {
             "question": "What is RAG?",
             "answer": "RAG combines retrieval and generation.",
             "sources": ["sample.txt"],
+            "session_id": "test-session",
         }
+        pipeline.query.assert_called_once_with(
+            "What is RAG?",
+            stream=False,
+            session_id="test-session",
+        )
         assert json.dumps(body["payload"])

@@ -18,7 +18,7 @@ _BANNER = """
   RAG ver. 0.3 | Qwen-4B + Qdrant + Octen-Embedding-0.6B
 ================================================
 Система поддерживает следующие языки: EN, RU.
-Комманды:  /stats  /quit
+Комманды:  /stats  /clear  /quit
 """
 
 
@@ -36,6 +36,10 @@ def _run_interactive(pipeline, stream: bool) -> None:
         if question.lower() in ("/quit", "/exit", "quit", "exit"):
             print("Чат завершен!")
             break
+        if question.lower() == "/clear":
+            pipeline.clear_history()
+            print("Контекст диалога очищен.")
+            continue
         if question.lower() == "/stats":
             import json
             print(json.dumps(pipeline.stats(), indent=2))

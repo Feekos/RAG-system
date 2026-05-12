@@ -114,6 +114,42 @@ class TestQuery:
         call_kwargs = chain.invoke.call_args[0][0]
         assert "Qdrant stores vectors." in call_kwargs["context"]
 
+    def test_first_query_passes_empty_chat_history_to_chain(self, pipeline):
+        p, _, _, _, _, chain = pipeline
+        p.query("What is Qdrant?")
+        call_kwargs = chain.invoke.call_args[0][0]
+        assert call_kwargs["chat_history"] == "No prior conversation."
+
+    def test_followup_query_uses_previous_turn_for_retrieval_and_generation(self, pipeline):
+        p, _, _, mock_retriever, _, chain = pipeline
+        chain.invoke.side_effect = [
+            "Use the avalanche method for high-interest debt [1].",
+            "Another method is the snowball method [1].",
+        ]
+
+        p.query("How can I reduce my credit debt?")
+        p.query("What other method is there?")
+
+        second_retrieval_query = mock_retriever.retrieve_with_context.call_args_list[1].args[0]
+        second_payload = chain.invoke.call_args_list[1].args[0]
+        assert "How can I reduce my credit debt?" in second_retrieval_query
+        assert "avalanche method" in second_retrieval_query
+        assert "What other method is there?" in second_retrieval_query
+        assert "How can I reduce my credit debt?" in second_payload["chat_history"]
+        assert "avalanche method" in second_payload["chat_history"]
+
+    def test_query_can_disable_chat_history(self, pipeline):
+        p, _, _, mock_retriever, _, chain = pipeline
+        chain.invoke.side_effect = ["First answer [1].", "Second answer [1]."]
+
+        p.query("First question?")
+        p.query("Second question?", use_history=False)
+
+        second_retrieval_query = mock_retriever.retrieve_with_context.call_args_list[1].args[0]
+        second_payload = chain.invoke.call_args_list[1].args[0]
+        assert second_retrieval_query == "Second question?"
+        assert second_payload["chat_history"] == "No prior conversation."
+
     def test_query_russian_question(self, pipeline):
         p, _, _, mock_retriever, _, chain = pipeline
         mock_retriever.retrieve_with_context.return_value = (
