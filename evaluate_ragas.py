@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -67,4 +68,8 @@ def _jsonable(value):
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n[RAGAS] Оценка прервана пользователем.", file=sys.stderr)
+        raise SystemExit(130)
