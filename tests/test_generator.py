@@ -135,6 +135,16 @@ class TestGenerator:
             "Qwen/Qwen1.5-4B-Chat", trust_remote_code=True
         )
 
+    def test_init_disables_bpe_cleanup_warning_source(self, mock_transformers):
+        from src.generator import Generator
+
+        Generator(model_name="Qwen/Qwen1.5-4B-Chat")
+
+        tokenizer = mock_transformers["tokenizer_cls"].from_pretrained.return_value
+        call_kwargs = mock_transformers["pipeline"].call_args.kwargs
+        assert tokenizer.clean_up_tokenization_spaces is False
+        assert call_kwargs["clean_up_tokenization_spaces"] is False
+
     def test_init_calls_hf_pipeline_with_model_name(self, mock_transformers):
         from src.generator import Generator
         Generator(model_name="Qwen/Qwen1.5-4B-Chat")

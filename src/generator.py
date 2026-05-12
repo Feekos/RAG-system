@@ -63,11 +63,13 @@ class Generator:
         print(f"[Generator] Загрузка модели: {model_name} ...")
 
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        tokenizer.clean_up_tokenization_spaces = False
 
         pipe_kwargs: dict = {
             "model": model_name,
             "tokenizer": tokenizer,
             "max_new_tokens": settings.max_new_tokens,
+            "clean_up_tokenization_spaces": False,
             "return_full_text": False,  # return only newly generated tokens
             "trust_remote_code": True,
             # `dtype` is the non-deprecated replacement for `torch_dtype`.
@@ -120,6 +122,7 @@ def _configure_transformers_logging() -> None:
     for logger_name in (
         "transformers.generation.configuration_utils",
         "transformers.generation.utils",
+        "transformers.tokenization_utils_base",
     ):
         hf_logging.get_logger(logger_name).setLevel(logging.ERROR)
 
