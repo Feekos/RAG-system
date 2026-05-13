@@ -151,6 +151,9 @@ def run_ragas_evaluation(
         "llm": evaluator_llm,
         "embeddings": evaluator_embeddings,
     }
+    run_config = _build_ragas_run_config()
+    if run_config is not None and "run_config" in inspect.signature(evaluate).parameters:
+        evaluate_kwargs["run_config"] = run_config
     if "raise_exceptions" in inspect.signature(evaluate).parameters:
         evaluate_kwargs["raise_exceptions"] = True
     result = evaluate(**evaluate_kwargs)
@@ -270,9 +273,27 @@ def _build_evaluator_llm():
         api_key=settings.ragas_llm_api_key,
         temperature=settings.ragas_llm_temperature,
         max_tokens=settings.ragas_llm_max_tokens,
+        timeout=settings.ragas_llm_timeout,
     )
     _ensure_openai_compatible_endpoint(settings.ragas_llm_base_url, settings.ragas_llm_api_key)
     return LangchainLLMWrapper(llm)
+
+
+def _build_ragas_run_config() -> Any | None:
+    try:
+        from ragas.run_config import RunConfig
+    except ImportError:
+        try:
+            from ragas import RunConfig
+        except ImportError:
+            return None
+
+    kwargs = {
+        "timeout": settings.ragas_timeout,
+        "max_workers": settings.ragas_max_workers,
+    }
+    accepted = _accepted_kwargs(RunConfig, kwargs)
+    return RunConfig(**accepted)
 
 
 def _ensure_openai_compatible_endpoint(base_url: str, api_key: str) -> None:
@@ -347,7 +368,18 @@ def _build_metrics(metric_names: List[str], evaluator_llm: Any, evaluator_embedd
             )
         else:
             raise ValueError(f"Unsupported RAGAS metric: {name}")
+    for metric in built:
+        _set_metric_timeout(metric, settings.ragas_timeout)
     return built
+
+
+def _set_metric_timeout(metric: Any, timeout: int) -> None:
+    for attr in ("timeout", "_timeout"):
+        if hasattr(metric, attr):
+            try:
+                setattr(metric, attr, timeout)
+            except (AttributeError, TypeError):
+                pass
 
 
 def _metric_from_candidates(module: Any, candidates: List[str], **kwargs: Any) -> Any:

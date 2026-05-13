@@ -275,6 +275,8 @@ curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
 docker compose logs -f vllm
 ```
 
+Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1` и `RAGAS_TIMEOUT=300`. Это снижает риск `TimeoutError` на LLM-based метриках, особенно на `answer_relevancy`, которая генерирует дополнительные вопросы через judge LLM.
+
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 
 Важно: Если меняете `chunk_size`, `chunk_overlap`, `embedding_model` или `embedding_dim`, включите `reset_index=true` или передайте `--reset-index`, иначе будет оцениваться старая коллекция Qdrant.
@@ -314,9 +316,12 @@ docker compose logs -f vllm
 | `RAGAS_CONFIG_PATH` | `eval/ragas_config.json` | конфигурация RAGAS |
 | `RAGAS_TESTSET_PATH` | `eval/testset.jsonl` | тестовый набор RAGAS |
 | `RAGAS_OUTPUT_DIR` | `eval/results` | папка отчетов RAGAS |
+| `RAGAS_TIMEOUT` | `300` | таймаут одной RAGAS-задачи в секундах |
+| `RAGAS_MAX_WORKERS` | `1` | параллелизм RAGAS; для локального vLLM лучше начинать с 1 |
 | `RAGAS_LLM_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | judge LLM, который обслуживает vLLM |
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
+| `RAGAS_LLM_TIMEOUT` | `300` | HTTP timeout запросов к vLLM judge LLM в секундах |
 | `VLLM_API_PORT` | `8001` | внешний порт OpenAI-compatible сервера vLLM |
 
 ## Данные для RAG
