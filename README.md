@@ -253,10 +253,13 @@ python evaluate_ragas.py --experiments
 Запуск внутри CLI Docker:
 
 ```bash
+docker compose build rag-eval
 docker compose --profile eval run --rm rag-eval # Запуск оценки RAGAS
 docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --index-path data/documents --reset-index
 docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --experiments # Запуск экспериментов
 ```
+
+После изменений в Python-коде или зависимостях сначала пересоберите `rag-eval`, иначе Docker запустит старую версию evaluator из уже собранного образа.
 
 Обычная команда `docker compose --profile eval run --rm rag-eval` сама поднимает зависимости `qdrant` и `vllm`, а затем запускает оценку. Готовность OpenAI-compatible endpoint проверяется внутри `evaluate_ragas.py` перед расчетом метрик: скрипт ждет `/v1/models` до `RAGAS_LLM_WAIT_TIMEOUT` секунд.
 
