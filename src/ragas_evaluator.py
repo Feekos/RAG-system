@@ -5,6 +5,7 @@ import inspect
 import itertools
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from contextlib import contextmanager
@@ -303,11 +304,22 @@ def _ensure_openai_compatible_endpoint(base_url: str, api_key: str) -> None:
         headers={"Authorization": f"Bearer {api_key}"},
         method="GET",
     )
-    try:
-        with urllib.request.urlopen(request, timeout=5) as response:
-            if response.status >= 400:
-                raise RuntimeError(f"HTTP {response.status}")
-    except (OSError, TimeoutError, urllib.error.URLError, RuntimeError) as exc:
+    deadline = time.monotonic() + settings.ragas_llm_wait_timeout
+    last_error: BaseException | None = None
+    print(f"[RAGAS] Waiting for evaluator LLM endpoint: {models_url}")
+
+    while time.monotonic() <= deadline:
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                if response.status < 400:
+                    print("[RAGAS] Evaluator LLM endpoint is ready.")
+                    return
+                last_error = RuntimeError(f"HTTP {response.status}")
+        except (OSError, TimeoutError, urllib.error.URLError, RuntimeError) as exc:
+            last_error = exc
+        time.sleep(settings.ragas_llm_wait_interval)
+
+    if last_error is not None:
         raise RuntimeError(
             "RAGAS evaluator LLM endpoint is not available: "
             f"{models_url}. Start vLLM before running evaluation:\n"
@@ -316,7 +328,7 @@ def _ensure_openai_compatible_endpoint(base_url: str, api_key: str) -> None:
             "  curl -H 'Authorization: Bearer local-vllm-key' http://localhost:8001/v1/models\n"
             "and inspect logs with:\n"
             "  docker compose logs -f vllm"
-        ) from exc
+        ) from last_error
 
 
 def _build_evaluator_embeddings():

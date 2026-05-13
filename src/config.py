@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     ragas_llm_temperature: float = Field(0.0, alias="RAGAS_LLM_TEMPERATURE")
     ragas_llm_max_tokens: int = Field(1024, alias="RAGAS_LLM_MAX_TOKENS")
     ragas_llm_timeout: int = Field(300, alias="RAGAS_LLM_TIMEOUT")
+    ragas_llm_wait_timeout: int = Field(600, alias="RAGAS_LLM_WAIT_TIMEOUT")
+    ragas_llm_wait_interval: float = Field(5.0, alias="RAGAS_LLM_WAIT_INTERVAL")
 
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 

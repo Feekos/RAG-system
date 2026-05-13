@@ -258,7 +258,7 @@ docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --index
 docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --experiments # Запуск экспериментов
 ```
 
-Обычная команда `docker compose --profile eval run --rm rag-eval` сама поднимает зависимости `qdrant` и `vllm`, а затем запускает оценку. Готовность OpenAI-compatible endpoint проверяется внутри `evaluate_ragas.py` перед расчетом метрик.
+Обычная команда `docker compose --profile eval run --rm rag-eval` сама поднимает зависимости `qdrant` и `vllm`, а затем запускает оценку. Готовность OpenAI-compatible endpoint проверяется внутри `evaluate_ragas.py` перед расчетом метрик: скрипт ждет `/v1/models` до `RAGAS_LLM_WAIT_TIMEOUT` секунд.
 
 Если `vllm` уже запускался раньше и остался в ошибочном состоянии после смены настроек, пересоздайте его отдельно и посмотрите логи:
 
@@ -322,6 +322,8 @@ docker compose logs -f vllm
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
 | `RAGAS_LLM_TIMEOUT` | `300` | HTTP timeout запросов к vLLM judge LLM в секундах |
+| `RAGAS_LLM_WAIT_TIMEOUT` | `600` | сколько секунд ждать готовности `/v1/models` при старте оценки |
+| `RAGAS_LLM_WAIT_INTERVAL` | `5` | интервал между проверками готовности vLLM |
 | `VLLM_API_PORT` | `8001` | внешний порт OpenAI-compatible сервера vLLM |
 
 ## Данные для RAG
