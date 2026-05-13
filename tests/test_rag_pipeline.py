@@ -150,6 +150,27 @@ class TestQuery:
         assert second_retrieval_query == "Second question?"
         assert second_payload["chat_history"] == "No prior conversation."
 
+    def test_followup_retries_plain_question_when_contextual_retrieval_fails(self, pipeline):
+        p, _, _, mock_retriever, _, chain = pipeline
+        chain.invoke.side_effect = ["First answer [1].", "Fallback answer [1]."]
+        mock_retriever.retrieve_with_context.side_effect = [
+            (
+                [Document(page_content="Initial context.", metadata={"source": "doc.txt"})],
+                "[1] Initial context.",
+            ),
+            TypeError("tokenizer failed"),
+            (
+                [Document(page_content="Fallback context.", metadata={"source": "doc.txt"})],
+                "[1] Fallback context.",
+            ),
+        ]
+
+        p.query("Initial question?")
+        response = p.query("Follow-up question?")
+
+        assert response.answer == "Fallback answer [1]."
+        assert mock_retriever.retrieve_with_context.call_args_list[2].args[0] == "Follow-up question?"
+
     def test_query_russian_question(self, pipeline):
         p, _, _, mock_retriever, _, chain = pipeline
         mock_retriever.retrieve_with_context.return_value = (

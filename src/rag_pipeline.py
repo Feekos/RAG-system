@@ -99,11 +99,10 @@ class RAGPipeline:
             self._build_gen_chain(self._generator)
 
         history = self._get_history(session_id) if use_history else []
-        retrieval_query = self._build_retrieval_query(question, history)
-        docs, context = self._retriever.retrieve_with_context(retrieval_query)
+        docs, context = self._retrieve_with_fallback(question, history)
         if not docs:
             return RAGResponse(
-                answer="No relevant documents found in the knowledge base.",
+                answer="Ответ отсутствует в предоставленных документах.",
                 question=question,
             )
 
@@ -162,6 +161,25 @@ class RAGPipeline:
             return question
         previous_questions = " ".join(cls._plain_text(item[0]) for item in history)
         return cls._plain_text(f"{previous_questions} {question}")
+
+    def _retrieve_with_fallback(
+        self,
+        question: str,
+        history: list[tuple[str, str]],
+    ) -> tuple[List[Document], str]:
+        retrieval_query = self._build_retrieval_query(question, history)
+        try:
+            return self._retriever.retrieve_with_context(retrieval_query)
+        except Exception as exc:
+            if history and retrieval_query != question:
+                print(f"[Retriever] Contextual query failed, retrying without history: {exc}")
+                try:
+                    return self._retriever.retrieve_with_context(question)
+                except Exception as retry_exc:
+                    print(f"[Retriever] Plain query failed: {retry_exc}")
+            else:
+                print(f"[Retriever] Query failed: {exc}")
+            return [], "No relevant context found."
 
     @staticmethod
     def _plain_text(value: str, limit: int = 1000) -> str:

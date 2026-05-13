@@ -45,7 +45,12 @@ def _run_interactive(pipeline, stream: bool) -> None:
             continue
 
         print("\nАссистент: ", end="", flush=True)
-        response = pipeline.query(question, stream=stream)
+        try:
+            response = pipeline.query(question, stream=stream)
+        except Exception as exc:
+            print(f"Не удалось обработать запрос: {exc}")
+            print("Попробуйте перезапустить CLI или очистить контекст командой /clear.")
+            continue
         if not stream:
             print(response.answer)
 
@@ -65,7 +70,11 @@ def main() -> None:
     pipeline = RAGPipeline.create(top_k=args.top_k)
 
     if args.query:
-        response = pipeline.query(args.query, stream=args.stream)
+        try:
+            response = pipeline.query(args.query, stream=args.stream)
+        except Exception as exc:
+            print(f"Не удалось обработать запрос: {exc}")
+            return
         if not args.stream:
             print(response.answer)
         if response.sources:
