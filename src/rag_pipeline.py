@@ -52,7 +52,7 @@ class RAGPipeline:
 
     @classmethod
     def create(cls, lazy_generator: bool = False, top_k: int | None = None) -> "RAGPipeline":
-        """Factory that wires all components together."""
+        """Фабрика соединяющая все компоненты системы вместе."""
         processor = DocumentProcessor()
         embeddings = EmbeddingModel()
         store = VectorStore(embeddings)

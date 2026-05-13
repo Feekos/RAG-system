@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     generator_model: str = Field("Qwen/Qwen3-4B-Instruct-2507", alias="GENERATOR_MODEL")
     system_prompt: str = Field("", alias="SYSTEM_PROMPT")
     max_new_tokens: int = Field(384, alias="MAX_NEW_TOKENS")
-    temperature: float = Field(0.0, alias="TEMPERATURE")
+    temperature: float = Field(0.2, alias="TEMPERATURE")
     torch_dtype: str = Field("float16", alias="TORCH_DTYPE")
 
     # Поиск
