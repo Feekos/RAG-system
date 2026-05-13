@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import csv
+import inspect
 import itertools
 import json
 import os
+import urllib.error
+import urllib.request
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -118,6 +121,10 @@ def run_ragas_evaluation(
 ) -> dict[str, Path | dict[str, float]]:
     evaluate, Dataset = _import_ragas_runtime()
     rows = load_testset(config.testset_path)
+    evaluator_llm = evaluator_llm or _build_evaluator_llm()
+    evaluator_embeddings = evaluator_embeddings or _build_evaluator_embeddings()
+    metrics = _build_metrics(config.metrics, evaluator_llm, evaluator_embeddings)
+
     with _temporary_env({"RAGAS_RESET_INDEX": "true"} if config.reset_index else {}):
         pipeline = pipeline or RAGPipeline.create(
             lazy_generator=config.lazy_generator,
@@ -137,17 +144,16 @@ def run_ragas_evaluation(
                 pipeline.ingest_file(str(target))
     samples = build_ragas_samples(pipeline, rows)
 
-    evaluator_llm = evaluator_llm or _build_evaluator_llm()
-    evaluator_embeddings = evaluator_embeddings or _build_evaluator_embeddings()
-    metrics = _build_metrics(config.metrics, evaluator_llm, evaluator_embeddings)
-
     dataset = Dataset.from_list(samples)
-    result = evaluate(
-        dataset=dataset,
-        metrics=metrics,
-        llm=evaluator_llm,
-        embeddings=evaluator_embeddings,
-    )
+    evaluate_kwargs = {
+        "dataset": dataset,
+        "metrics": metrics,
+        "llm": evaluator_llm,
+        "embeddings": evaluator_embeddings,
+    }
+    if "raise_exceptions" in inspect.signature(evaluate).parameters:
+        evaluate_kwargs["raise_exceptions"] = True
+    result = evaluate(**evaluate_kwargs)
 
     dataframe = result.to_pandas()
     result_rows = _to_jsonable(dataframe.to_dict(orient="records"))
@@ -265,7 +271,31 @@ def _build_evaluator_llm():
         temperature=settings.ragas_llm_temperature,
         max_tokens=settings.ragas_llm_max_tokens,
     )
+    _ensure_openai_compatible_endpoint(settings.ragas_llm_base_url, settings.ragas_llm_api_key)
     return LangchainLLMWrapper(llm)
+
+
+def _ensure_openai_compatible_endpoint(base_url: str, api_key: str) -> None:
+    models_url = f"{base_url.rstrip('/')}/models"
+    request = urllib.request.Request(
+        models_url,
+        headers={"Authorization": f"Bearer {api_key}"},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            if response.status >= 400:
+                raise RuntimeError(f"HTTP {response.status}")
+    except (OSError, TimeoutError, urllib.error.URLError, RuntimeError) as exc:
+        raise RuntimeError(
+            "RAGAS evaluator LLM endpoint is not available: "
+            f"{models_url}. Start vLLM before running evaluation:\n"
+            "  docker compose --profile eval run --rm rag-eval\n"
+            "If vLLM is already starting, wait until the model is loaded. Check it with:\n"
+            "  curl -H 'Authorization: Bearer local-vllm-key' http://localhost:8001/v1/models\n"
+            "and inspect logs with:\n"
+            "  docker compose logs -f vllm"
+        ) from exc
 
 
 def _build_evaluator_embeddings():

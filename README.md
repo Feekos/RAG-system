@@ -253,13 +253,17 @@ python evaluate_ragas.py --experiments
 Запуск внутри CLI Docker:
 
 ```bash
-docker compose --profile eval up -d vllm
-docker compose run --rm rag-cli python evaluate_ragas.py # Запуск оценки RAGAS
-docker compose run --rm rag-cli python evaluate_ragas.py --index-path data/documents --reset-index
-docker compose run --rm rag-cli python evaluate_ragas.py --experiments # Запуск экспериментов
+docker compose --profile eval run --rm rag-eval # Запуск оценки RAGAS
+docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --index-path data/documents --reset-index
+docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --experiments # Запуск экспериментов
 ```
 
-RAGAS использует vLLM как OpenAI-compatible judge LLM. Внутри Docker Compose evaluator подключается к `http://vllm:8000/v1`; при локальном запуске Python с хоста по умолчанию используется `http://localhost:8001/v1`.
+RAGAS использует vLLM как OpenAI-compatible judge LLM. Сервис `rag-eval` автоматически поднимает `vllm` и ждет, пока endpoint `/v1/models` станет доступен. Внутри Docker Compose evaluator подключается к `http://vllm:8000/v1`; при локальном запуске Python с хоста по умолчанию используется `http://localhost:8001/v1`.
+
+```bash
+curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
+docker compose logs -f vllm
+```
 
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 

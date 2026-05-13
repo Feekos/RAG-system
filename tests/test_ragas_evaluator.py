@@ -145,6 +145,8 @@ def test_build_evaluator_llm_uses_openai_compatible_endpoint():
 
     fake_ragas_llms = SimpleNamespace(LangchainLLMWrapper=FakeWrapper)
     fake_langchain_openai = SimpleNamespace(ChatOpenAI=FakeChatOpenAI)
+    response = MagicMock()
+    response.__enter__.return_value.status = 200
 
     with patch.dict(
         sys.modules,
@@ -152,7 +154,7 @@ def test_build_evaluator_llm_uses_openai_compatible_endpoint():
             "ragas.llms": fake_ragas_llms,
             "langchain_openai": fake_langchain_openai,
         },
-    ):
+    ), patch("src.ragas_evaluator.urllib.request.urlopen", return_value=response) as mock_urlopen:
         wrapper = _build_evaluator_llm()
 
     assert isinstance(wrapper, FakeWrapper)
@@ -160,3 +162,4 @@ def test_build_evaluator_llm_uses_openai_compatible_endpoint():
     assert created["chat_kwargs"]["base_url"]
     assert created["chat_kwargs"]["api_key"]
     assert created["chat_kwargs"]["model"]
+    mock_urlopen.assert_called_once()

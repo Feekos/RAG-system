@@ -6,7 +6,8 @@ services:
     depends_on:
       - qdrant
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
@@ -35,7 +36,8 @@ services:
     depends_on:
       - qdrant
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       QDRANT_HOST: qdrant
       QDRANT_PORT: 6333
@@ -51,22 +53,59 @@ services:
       - hf_cache:/models
     command: ["python", "main.py"]
 
+  rag-eval:
+    build: .
+    image: local-rag-qwen-qdrant:latest
+    gpus: all
+    profiles: ["eval"]
+    depends_on:
+      qdrant:
+        condition: service_started
+      vllm:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      HF_HOME: /models
+      SENTENCE_TRANSFORMERS_HOME: /models
+      TRANSFORMERS_CACHE: /models
+      RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+    volumes:
+      - ./data:/app/data
+      - ./eval:/app/eval
+      - hf_cache:/models
+    command: ["python", "evaluate_ragas.py"]
+
   vllm:
     image: vllm/vllm-openai:latest
     gpus: all
     ipc: host
     profiles: ["eval"]
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       HF_HOME: /models
+      HF_TOKEN: ${HF_TOKEN:-}
       HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+      RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
     volumes:
       - hf_cache:/models
     ports:
       - "${VLLM_API_BIND:-127.0.0.1}:${VLLM_API_PORT:-8001}:8000"
     command:
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
       - --model
+      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      - --served-model-name
       - ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
       - --dtype
       - auto
@@ -74,6 +113,15 @@ services:
       - ${RAGAS_LLM_API_KEY:-local-vllm-key}
       - --generation-config
       - vllm
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          python -c "import os, urllib.request; req = urllib.request.Request('http://127.0.0.1:8000/v1/models', headers={'Authorization': 'Bearer ' + os.getenv('RAGAS_LLM_API_KEY', 'local-vllm-key')}); urllib.request.urlopen(req, timeout=5).read()"
+      interval: 15s
+      timeout: 10s
+      retries: 80
+      start_period: 30s
     restart: unless-stopped
 
   qdrant:
