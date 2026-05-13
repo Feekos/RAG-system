@@ -258,7 +258,7 @@ docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --index
 docker compose --profile eval run --rm rag-eval python evaluate_ragas.py --experiments # Запуск экспериментов
 ```
 
-Обычная команда `docker compose --profile eval run --rm rag-eval` сама поднимает зависимости `qdrant` и `vllm`, ждет готовности vLLM по healthcheck и затем запускает оценку.
+Обычная команда `docker compose --profile eval run --rm rag-eval` сама поднимает зависимости `qdrant` и `vllm`, а затем запускает оценку. Готовность OpenAI-compatible endpoint проверяется внутри `evaluate_ragas.py` перед расчетом метрик.
 
 Если `vllm` уже запускался раньше и остался в ошибочном состоянии после смены настроек, пересоздайте его отдельно и посмотрите логи:
 
@@ -267,8 +267,8 @@ docker compose --profile eval up -d --force-recreate vllm
 docker compose logs -f vllm
 ```
 
-RAGAS использует vLLM как OpenAI-compatible judge LLM. Сервис `rag-eval` автоматически поднимает `vllm` и ждет, пока endpoint `/v1/models` станет доступен. Внутри Docker Compose evaluator подключается к `http://vllm:8000/v1`; при локальном запуске Python с хоста по умолчанию используется `http://localhost:8001/v1`.
-Compose healthcheck проверяет `/health`, а рабочий OpenAI-compatible endpoint для RAGAS проверяется отдельно через `/v1/models`.
+RAGAS использует vLLM как OpenAI-compatible judge LLM. Внутри Docker Compose evaluator подключается к `http://vllm:8000/v1`; при локальном запуске Python с хоста по умолчанию используется `http://localhost:8001/v1`.
+Рабочий OpenAI-compatible endpoint для RAGAS проверяется через `/v1/models`.
 
 ```bash
 curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
