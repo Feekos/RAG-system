@@ -82,7 +82,7 @@ services:
     command: ["python", "evaluate_ragas.py"]
 
   vllm:
-    image: vllm/vllm-openai:latest
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.8.5}
     gpus: all
     ipc: host
     profiles: ["eval"]
