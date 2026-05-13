@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 import torch
 from langchain_core.language_models import BaseChatModel
@@ -122,9 +123,11 @@ def _resolve_dtype(dtype_name: str):
 
 
 def _configure_transformers_logging() -> None:
+    os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
     for logger_name in (
         "transformers.generation.configuration_utils",
         "transformers.generation.utils",
+        "transformers.pipelines.base",
         "transformers.tokenization_utils_base",
     ):
         hf_logging.get_logger(logger_name).setLevel(logging.ERROR)

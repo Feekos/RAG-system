@@ -269,3 +269,12 @@ class TestGenerator:
         mock_transformers["tokenizer_cls"].from_pretrained.assert_called_once_with(
             "Qwen/Qwen1.5-4B-Chat", trust_remote_code=True
         )
+
+    def test_configures_transformers_pipeline_warning_logger(self, mock_transformers):
+        from src.generator import Generator
+
+        with patch("src.generator.hf_logging") as mock_hf_logging:
+            Generator(model_name="Qwen/Qwen1.5-4B-Chat")
+
+        logger_names = [call.args[0] for call in mock_hf_logging.get_logger.call_args_list]
+        assert "transformers.pipelines.base" in logger_names
