@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     ragas_testset_path: str = Field("eval/testset.jsonl", alias="RAGAS_TESTSET_PATH")
     ragas_output_dir: str = Field("eval/results", alias="RAGAS_OUTPUT_DIR")
     ragas_reset_index: bool = Field(False, alias="RAGAS_RESET_INDEX")
+    ragas_llm_model: str = Field("Qwen/Qwen3-4B-Instruct-2507", alias="RAGAS_LLM_MODEL")
+    ragas_llm_base_url: str = Field("http://localhost:8001/v1", alias="RAGAS_LLM_BASE_URL")
+    ragas_llm_api_key: str = Field("local-vllm-key", alias="RAGAS_LLM_API_KEY")
+    ragas_llm_temperature: float = Field(0.0, alias="RAGAS_LLM_TEMPERATURE")
+    ragas_llm_max_tokens: int = Field(1024, alias="RAGAS_LLM_MAX_TOKENS")
 
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 

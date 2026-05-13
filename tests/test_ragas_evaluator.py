@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from langchain_core.documents import Document
 
 from src.ragas_evaluator import (
     RagasRunConfig,
+    _build_evaluator_llm,
     build_ragas_samples,
     load_ragas_config,
     load_testset,
@@ -127,3 +130,33 @@ def test_run_ragas_experiments_writes_leaderboard(tmp_path):
     assert mock_run.call_count == 2
     assert result["leaderboard_csv"].exists()
     assert result["leaderboard_markdown"].exists()
+
+
+def test_build_evaluator_llm_uses_openai_compatible_endpoint():
+    created = {}
+
+    class FakeChatOpenAI:
+        def __init__(self, **kwargs):
+            created["chat_kwargs"] = kwargs
+
+    class FakeWrapper:
+        def __init__(self, llm):
+            created["wrapped_llm"] = llm
+
+    fake_ragas_llms = SimpleNamespace(LangchainLLMWrapper=FakeWrapper)
+    fake_langchain_openai = SimpleNamespace(ChatOpenAI=FakeChatOpenAI)
+
+    with patch.dict(
+        sys.modules,
+        {
+            "ragas.llms": fake_ragas_llms,
+            "langchain_openai": fake_langchain_openai,
+        },
+    ):
+        wrapper = _build_evaluator_llm()
+
+    assert isinstance(wrapper, FakeWrapper)
+    assert isinstance(created["wrapped_llm"], FakeChatOpenAI)
+    assert created["chat_kwargs"]["base_url"]
+    assert created["chat_kwargs"]["api_key"]
+    assert created["chat_kwargs"]["model"]

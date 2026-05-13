@@ -13,6 +13,9 @@ services:
       HF_HOME: /models
       SENTENCE_TRANSFORMERS_HOME: /models
       TRANSFORMERS_CACHE: /models
+      RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -39,11 +42,39 @@ services:
       HF_HOME: /models
       SENTENCE_TRANSFORMERS_HOME: /models
       TRANSFORMERS_CACHE: /models
+      RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
       - hf_cache:/models
     command: ["python", "main.py"]
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    gpus: all
+    ipc: host
+    profiles: ["eval"]
+    env_file:
+      - .env
+    environment:
+      HF_HOME: /models
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - hf_cache:/models
+    ports:
+      - "${VLLM_API_BIND:-127.0.0.1}:${VLLM_API_PORT:-8001}:8000"
+    command:
+      - --model
+      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      - --dtype
+      - auto
+      - --api-key
+      - ${RAGAS_LLM_API_KEY:-local-vllm-key}
+      - --generation-config
+      - vllm
+    restart: unless-stopped
 
   qdrant:
     image: qdrant/qdrant:latest

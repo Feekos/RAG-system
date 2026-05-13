@@ -12,7 +12,6 @@ from typing import Any, Iterable, List
 
 from .config import settings
 from .embeddings import EmbeddingModel
-from .generator import Generator
 from .rag_pipeline import RAGPipeline
 
 
@@ -251,7 +250,22 @@ def _build_evaluator_llm():
         from ragas.llms import LangchainLLMWrapper
     except ImportError as exc:
         raise RuntimeError("Installed RAGAS version does not expose LangchainLLMWrapper.") from exc
-    return LangchainLLMWrapper(Generator().langchain)
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError as exc:
+        raise RuntimeError(
+            "RAGAS evaluator LLM uses a vLLM/OpenAI-compatible endpoint. "
+            "Install langchain-openai with: pip install -r requirements.txt"
+        ) from exc
+
+    llm = ChatOpenAI(
+        model=settings.ragas_llm_model,
+        base_url=settings.ragas_llm_base_url,
+        api_key=settings.ragas_llm_api_key,
+        temperature=settings.ragas_llm_temperature,
+        max_tokens=settings.ragas_llm_max_tokens,
+    )
+    return LangchainLLMWrapper(llm)
 
 
 def _build_evaluator_embeddings():
