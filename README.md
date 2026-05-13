@@ -268,6 +268,7 @@ docker compose logs -f vllm
 ```
 
 RAGAS использует vLLM как OpenAI-compatible judge LLM. Сервис `rag-eval` автоматически поднимает `vllm` и ждет, пока endpoint `/v1/models` станет доступен. Внутри Docker Compose evaluator подключается к `http://vllm:8000/v1`; при локальном запуске Python с хоста по умолчанию используется `http://localhost:8001/v1`.
+Compose healthcheck проверяет `/health`, а рабочий OpenAI-compatible endpoint для RAGAS проверяется отдельно через `/v1/models`.
 
 ```bash
 curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
