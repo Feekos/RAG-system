@@ -146,6 +146,13 @@ def run_ragas_evaluation(
     samples = build_ragas_samples(pipeline, rows)
 
     dataset = Dataset.from_list(samples)
+    print(
+        "[RAGAS] Evaluation settings: "
+        f"timeout={settings.ragas_timeout}s, "
+        f"max_workers={settings.ragas_max_workers}, "
+        f"llm_timeout={settings.ragas_llm_timeout}s, "
+        f"llm_max_tokens={settings.ragas_llm_max_tokens}"
+    )
     evaluate_kwargs = {
         "dataset": dataset,
         "metrics": metrics,

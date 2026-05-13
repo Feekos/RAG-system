@@ -278,7 +278,7 @@ curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
 docker compose logs -f vllm
 ```
 
-Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1` и `RAGAS_TIMEOUT=300`. Это снижает риск `TimeoutError` на LLM-based метриках, особенно на `answer_relevancy`, которая генерирует дополнительные вопросы через judge LLM.
+Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Это снижает риск `TimeoutError` на LLM-based метриках, особенно на `faithfulness` и `answer_relevancy`, которые делают дополнительные запросы к judge LLM.
 
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 
@@ -319,12 +319,13 @@ docker compose logs -f vllm
 | `RAGAS_CONFIG_PATH` | `eval/ragas_config.json` | конфигурация RAGAS |
 | `RAGAS_TESTSET_PATH` | `eval/testset.jsonl` | тестовый набор RAGAS |
 | `RAGAS_OUTPUT_DIR` | `eval/results` | папка отчетов RAGAS |
-| `RAGAS_TIMEOUT` | `300` | таймаут одной RAGAS-задачи в секундах |
+| `RAGAS_TIMEOUT` | `900` | таймаут одной RAGAS-задачи в секундах |
 | `RAGAS_MAX_WORKERS` | `1` | параллелизм RAGAS; для локального vLLM лучше начинать с 1 |
 | `RAGAS_LLM_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | judge LLM, который обслуживает vLLM |
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
-| `RAGAS_LLM_TIMEOUT` | `300` | HTTP timeout запросов к vLLM judge LLM в секундах |
+| `RAGAS_LLM_MAX_TOKENS` | `512` | максимальный размер ответа judge LLM для RAGAS |
+| `RAGAS_LLM_TIMEOUT` | `900` | HTTP timeout запросов к vLLM judge LLM в секундах |
 | `RAGAS_LLM_WAIT_TIMEOUT` | `600` | сколько секунд ждать готовности `/v1/models` при старте оценки |
 | `RAGAS_LLM_WAIT_INTERVAL` | `5` | интервал между проверками готовности vLLM |
 | `VLLM_API_PORT` | `8001` | внешний порт OpenAI-compatible сервера vLLM |
