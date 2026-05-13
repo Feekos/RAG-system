@@ -39,7 +39,7 @@ class VectorStore:
             print(f"[VectorStore] Created '{settings.qdrant_collection}' (dim={settings.embedding_dim})")
         else:
             self._validate_collection_dim()
-            print(f"[VectorStore] Found existing collection '{settings.qdrant_collection}'")
+            print(f"[VectorStore] Найдена существующая коллекция '{settings.qdrant_collection}'")
 
     def _validate_collection_dim(self) -> None:
         info = self._client.get_collection(settings.qdrant_collection)
@@ -56,7 +56,7 @@ class VectorStore:
                     ),
                 )
                 print(
-                    f"[VectorStore] Recreated '{settings.qdrant_collection}' "
+                    f"[VectorStore] Пересоздана '{settings.qdrant_collection}' "
                     f"(dim={settings.embedding_dim})"
                 )
                 return
@@ -106,4 +106,4 @@ class VectorStore:
 
     def delete_collection(self) -> None:
         self._client.delete_collection(settings.qdrant_collection)
-        print(f"[VectorStore] Deleted '{settings.qdrant_collection}'")
+        print(f"[VectorStore] Удалена '{settings.qdrant_collection}'")

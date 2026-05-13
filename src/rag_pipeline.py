@@ -28,7 +28,7 @@ class RAGResponse:
 
 class RAGPipeline:
     """
-    LangChain-based RAG pipeline.
+    Логика RAG-пайплайна на базе фреймворка LangChain.
 
     Ingest:  file/dir -> LangChain Documents -> chunk -> embed -> Qdrant
     Query:   question -> retrieve (Qdrant ANN) -> format context -> LCEL chain -> answer
@@ -74,7 +74,7 @@ class RAGPipeline:
 
     def _index_docs(self, docs: List[Document], batch_size: int) -> int:
         if not docs:
-            print("[Pipeline] No documents to index.")
+            print("[Pipeline] Нет документов для индексации.")
             return 0
 
         total = 0
@@ -82,9 +82,9 @@ class RAGPipeline:
             batch = docs[i : i + batch_size]
             self._store.add_documents(batch)
             total += len(batch)
-            print(f"[Pipeline] Indexed {total}/{len(docs)} chunks ...")
+            print(f"[Pipeline] Проиндексировано {total}/{len(docs)} чанков ...")
 
-        print(f"[Pipeline] Done. Total: {total} chunks.")
+        print(f"[Pipeline] Завершено. Всего: {total} чанков.")
         return total
 
     def reset_collection(self) -> None:
@@ -172,14 +172,14 @@ class RAGPipeline:
             return self._retriever.retrieve_with_context(retrieval_query)
         except Exception as exc:
             if history and retrieval_query != question:
-                print(f"[Retriever] Contextual query failed, retrying without history: {exc}")
+                print(f"[Retriever] Сбой контекстного запроса, повторная попытка без истории: {exc}")
                 try:
                     return self._retriever.retrieve_with_context(question)
                 except Exception as retry_exc:
-                    print(f"[Retriever] Plain query failed: {retry_exc}")
+                    print(f"[Retriever] Не удалось выполнить простой запрос: {retry_exc}")
             else:
-                print(f"[Retriever] Query failed: {exc}")
-            return [], "No relevant context found."
+                print(f"[Retriever] Не удалось выполнить запрос: {exc}")
+            return [], "Соответствующий контекст не найден."
 
     @staticmethod
     def _plain_text(value: str, limit: int = 1000) -> str:
