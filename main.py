@@ -5,7 +5,6 @@
 import argparse
 import os
 
-# Load .env BEFORE any src imports so HF_HOME is applied before model loading.
 from dotenv import load_dotenv
 load_dotenv()
 

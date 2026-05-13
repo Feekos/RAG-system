@@ -50,12 +50,12 @@ class RAGRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            self._write_json({"status": "ok"})
+            self._write_json({"status": "ok\n"})
             return
         if self.path == "/stats":
             self._write_json(_get_pipeline().stats())
             return
-        self._write_json({"error": "Not found"}, HTTPStatus.NOT_FOUND)
+        self._write_json({"error": "Not found\n"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
         try:

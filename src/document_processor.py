@@ -9,8 +9,6 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .config import settings
 
-# Separators that work well for both Russian (Cyrillic) and Latin text.
-# Russian uses the same punctuation as English, so sentence-boundary splitting works.
 _MULTILINGUAL_SEPARATORS = [
     "\n\n",   # paragraph break
     "\n",     # line break
@@ -26,11 +24,9 @@ _MULTILINGUAL_SEPARATORS = [
     "",       # character fallback
 ]
 
-
 class DocumentProcessor:
     """
     Loads .txt / .md / .rst / .pdf files and splits them into LangChain Documents.
-    Splitting uses multilingual separators — handles Russian and other languages correctly.
     """
 
     def __init__(self, chunk_size: int | None = None, chunk_overlap: int | None = None):
@@ -55,7 +51,7 @@ class DocumentProcessor:
                 raise ImportError("Install pypdf for PDF support: pip install pypdf")
         else:
             raise ValueError(
-                f"Unsupported file type: {suffix!r}. Supported: .txt .md .rst .pdf"
+                f"Неподдерживаемый тип файла: {suffix!r}. Поддерживаемые форматы: .txt .md .rst .pdf"
             )
 
         raw_docs = loader.load()

@@ -7,13 +7,9 @@ import os
 import sys
 from pathlib import Path
 
-# Load .env BEFORE any src imports so that HF_HOME (and other env vars)
-# are set before huggingface_hub / sentence-transformers read them.
 from dotenv import load_dotenv
 load_dotenv()
 
-# Apply HF_HOME early — huggingface_hub reads it on first use, but
-# sentence-transformers caches the home dir at import time in some versions.
 if "HF_HOME" in os.environ:
     os.environ.setdefault("SENTENCE_TRANSFORMERS_HOME", os.environ["HF_HOME"])
     os.environ.setdefault("TRANSFORMERS_CACHE", os.environ["HF_HOME"])
