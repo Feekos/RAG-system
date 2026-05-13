@@ -170,15 +170,12 @@ class RAGPipeline:
         retrieval_query = self._build_retrieval_query(question, history)
         try:
             return self._retriever.retrieve_with_context(retrieval_query)
-        except Exception as exc:
+        except Exception:
             if history and retrieval_query != question:
-                print(f"[Retriever] Сбой контекстного запроса, повторная попытка без истории: {exc}")
                 try:
                     return self._retriever.retrieve_with_context(question)
-                except Exception as retry_exc:
-                    print(f"[Retriever] Не удалось выполнить простой запрос: {retry_exc}")
-            else:
-                print(f"[Retriever] Не удалось выполнить запрос: {exc}")
+                except Exception:
+                    pass
             return [], "Соответствующий контекст не найден."
 
     @staticmethod

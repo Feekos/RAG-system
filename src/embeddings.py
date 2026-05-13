@@ -88,18 +88,27 @@ class EmbeddingModel(Embeddings):
         }
 
     def _encode_token_ids(self, text: str, max_length: int = 8192) -> List[int]:
-        backend = getattr(self._tokenizer, "backend_tokenizer", None)
-        if backend is not None:
-            encoding = backend.encode(str(text), add_special_tokens=True)
-            return list(encoding.ids[-max_length:])
-        return list(
-            self._tokenizer.encode(
-                str(text),
+        normalized_text = self._normalize_text(text)
+        try:
+            ids = self._tokenizer.encode(
+                normalized_text,
                 add_special_tokens=True,
                 truncation=True,
                 max_length=max_length,
             )
-        )
+            return list(ids[-max_length:])
+        except TypeError:
+            pass
+
+        backend = getattr(self._tokenizer, "backend_tokenizer", None)
+        if backend is not None:
+            encoding = backend.encode(normalized_text, add_special_tokens=True)
+            return list(encoding.ids[-max_length:])
+        raise TypeError("Tokenizer cannot encode text as a string sequence.")
+
+    @staticmethod
+    def _normalize_text(text: str) -> str:
+        return " ".join(str(text).replace("\x00", " ").split())
 
     def _pad_token_id(self) -> int:
         for attr in ("pad_token_id", "eos_token_id"):

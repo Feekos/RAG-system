@@ -31,6 +31,11 @@ class TestEmbeddingModel:
             mock_tokenizer.eos_token = "<|endoftext|>"
             mock_tokenizer.pad_token_id = 0
             mock_tokenizer.eos_token_id = 0
+            mock_tokenizer.encode.side_effect = lambda text, add_special_tokens=True, truncation=True, max_length=8192: [
+                1,
+                len(text),
+                2,
+            ]
             mock_tokenizer.backend_tokenizer.encode.side_effect = lambda text, add_special_tokens=True: SimpleNamespace(
                 ids=[1, len(text), 2]
             )
@@ -82,11 +87,12 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="Octen/Octen-Embedding-0.6B")
         result = model.embed_documents(["doc 1", "doc 2"])
 
-        backend_encode = mock_transformers["tokenizer"].backend_tokenizer.encode
-        assert backend_encode.call_count == 2
-        assert backend_encode.call_args_list[0].args[0] == "doc 1"
-        assert backend_encode.call_args_list[1].args[0] == "doc 2"
-        assert backend_encode.call_args_list[0].kwargs["add_special_tokens"] is True
+        encode = mock_transformers["tokenizer"].encode
+        assert encode.call_count == 2
+        assert encode.call_args_list[0].args[0] == "doc 1"
+        assert encode.call_args_list[1].args[0] == "doc 2"
+        assert encode.call_args_list[0].kwargs["add_special_tokens"] is True
+        mock_transformers["tokenizer"].backend_tokenizer.encode.assert_not_called()
         mock_transformers["tokenizer"].assert_not_called()
         mock_transformers["torch"].tensor.assert_called()
         assert len(result) == 2
@@ -110,7 +116,7 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="Octen/Octen-Embedding-0.6B")
         model.embed_query("What is RAG?")
 
-        call_text = mock_transformers["tokenizer"].backend_tokenizer.encode.call_args.args[0]
+        call_text = mock_transformers["tokenizer"].encode.call_args.args[0]
         assert call_text.startswith("Instruct:")
         assert call_text.endswith("What is RAG?")
 
@@ -120,7 +126,16 @@ class TestEmbeddingModel:
         model = EmbeddingModel(model_name="intfloat/multilingual-e5-large")
         model.embed_query("What is RAG?")
 
-        assert mock_transformers["tokenizer"].backend_tokenizer.encode.call_args.args[0] == "What is RAG?"
+        assert mock_transformers["tokenizer"].encode.call_args.args[0] == "What is RAG?"
+
+    def test_backend_tokenizer_is_fallback_only(self, mock_transformers):
+        from src.embeddings import EmbeddingModel
+
+        mock_transformers["tokenizer"].encode.side_effect = TypeError("slow tokenizer failed")
+        model = EmbeddingModel(model_name="Octen/Octen-Embedding-0.6B")
+        model.embed_query("What is RAG?")
+
+        assert mock_transformers["tokenizer"].backend_tokenizer.encode.called
 
     def test_embed_query_rejects_non_string_input(self, mock_transformers):
         from src.embeddings import EmbeddingModel
