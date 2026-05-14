@@ -5,6 +5,7 @@ services:
     gpus: all
     depends_on:
       - qdrant
+      - vllm
     env_file:
       - path: .env
         required: false
@@ -14,9 +15,11 @@ services:
       HF_HOME: /models
       SENTENCE_TRANSFORMERS_HOME: /models
       TRANSFORMERS_CACHE: /models
+      GENERATOR_BASE_URL: ${GENERATOR_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      GENERATOR_API_KEY: ${GENERATOR_API_KEY:-local-vllm-key}
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-QuantTrio/Qwen3.5-9B-AWQ}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -35,6 +38,7 @@ services:
     tty: true
     depends_on:
       - qdrant
+      - vllm
     env_file:
       - path: .env
         required: false
@@ -44,9 +48,11 @@ services:
       HF_HOME: /models
       SENTENCE_TRANSFORMERS_HOME: /models
       TRANSFORMERS_CACHE: /models
+      GENERATOR_BASE_URL: ${GENERATOR_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      GENERATOR_API_KEY: ${GENERATOR_API_KEY:-local-vllm-key}
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-QuantTrio/Qwen3.5-9B-AWQ}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -72,9 +78,11 @@ services:
       HF_HOME: /models
       SENTENCE_TRANSFORMERS_HOME: /models
       TRANSFORMERS_CACHE: /models
+      GENERATOR_BASE_URL: ${GENERATOR_DOCKER_BASE_URL:-http://vllm:8000/v1}
+      GENERATOR_API_KEY: ${GENERATOR_API_KEY:-local-vllm-key}
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-QuantTrio/Qwen3.5-9B-AWQ}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -87,10 +95,9 @@ services:
       dockerfile: Dockerfile.vllm
       args:
         VLLM_BASE_IMAGE: ${VLLM_BASE_IMAGE:-vllm/vllm-openai:nightly}
-    image: ${VLLM_PATCHED_IMAGE:-local-vllm-qwen35:latest}
+    image: ${VLLM_PATCHED_IMAGE:-local-vllm-qwen35-awq:latest}
     gpus: all
     ipc: host
-    profiles: ["eval"]
     environment:
       HF_HOME: /models
       HF_TOKEN: ${HF_TOKEN:-}
@@ -106,17 +113,21 @@ services:
       - --port
       - "8000"
       - --model
-      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
+      - ${RAGAS_LLM_MODEL:-QuantTrio/Qwen3.5-9B-AWQ}
       - --served-model-name
-      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
+      - ${RAGAS_LLM_MODEL:-QuantTrio/Qwen3.5-9B-AWQ}
       - --dtype
       - auto
+      - --quantization
+      - "${VLLM_QUANTIZATION:-awq}"
+      - --kv-cache-dtype
+      - "${VLLM_KV_CACHE_DTYPE:-fp8}"
       - --max-model-len
-      - "${VLLM_MAX_MODEL_LEN:-4096}"
+      - "${VLLM_MAX_MODEL_LEN:-8192}"
       - --max-num-seqs
       - "${VLLM_MAX_NUM_SEQS:-1}"
       - --max-num-batched-tokens
-      - "${VLLM_MAX_NUM_BATCHED_TOKENS:-4096}"
+      - "${VLLM_MAX_NUM_BATCHED_TOKENS:-8192}"
       - --reasoning-parser
       - qwen3
       - --language-model-only

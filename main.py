@@ -14,7 +14,7 @@ if "HF_HOME" in os.environ:
 
 _BANNER = """
 ================================================
-  RAG v0.32 | Qwen3.5-4B + Qdrant + Octen-Embedding-0.6B
+  RAG v0.32 | Qwen3.5-9B-AWQ + Qdrant + Octen-Embedding-0.6B
 ================================================
 Система поддерживает следующие языки: EN, RU.
 Комманды:  /stats  /clear  /quit

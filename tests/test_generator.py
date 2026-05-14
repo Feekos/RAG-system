@@ -123,6 +123,7 @@ class TestGenerator:
             patch("src.generator.hf_pipeline") as mock_pipeline,
             patch("src.generator.HuggingFacePipeline") as mock_hf_pipe_cls,
             patch("src.generator.ChatHuggingFace") as mock_chat_cls,
+            patch("src.generator.ChatOpenAI") as mock_openai_chat_cls,
             patch("src.generator.torch") as mock_torch,
         ):
             mock_tokenizer = MagicMock()
@@ -140,6 +141,8 @@ class TestGenerator:
 
             mock_chat_instance = MagicMock()
             mock_chat_cls.return_value = mock_chat_instance
+            mock_openai_chat_instance = MagicMock()
+            mock_openai_chat_cls.return_value = mock_openai_chat_instance
 
             yield {
                 "tokenizer_cls": mock_tokenizer_cls,
@@ -150,6 +153,8 @@ class TestGenerator:
                 "hf_pipe_cls": mock_hf_pipe_cls,
                 "chat_cls": mock_chat_cls,
                 "chat_instance": mock_chat_instance,
+                "openai_chat_cls": mock_openai_chat_cls,
+                "openai_chat_instance": mock_openai_chat_instance,
                 "torch": mock_torch,
             }
 
@@ -185,14 +190,14 @@ class TestGenerator:
     def test_qwen35_uses_image_text_to_text_model(self, mock_transformers):
         from src.generator import Generator
 
-        Generator(model_name="Qwen/Qwen3.5-4B")
+        Generator(model_name="QuantTrio/Qwen3.5-9B-AWQ")
 
         mock_transformers["processor_cls"].from_pretrained.assert_called_once_with(
-            "Qwen/Qwen3.5-4B", trust_remote_code=True
+            "QuantTrio/Qwen3.5-9B-AWQ", trust_remote_code=True
         )
         mock_transformers["image_text_model_cls"].from_pretrained.assert_called_once()
         image_text_call = mock_transformers["image_text_model_cls"].from_pretrained.call_args
-        assert image_text_call.args[0] == "Qwen/Qwen3.5-4B"
+        assert image_text_call.args[0] == "QuantTrio/Qwen3.5-9B-AWQ"
         assert image_text_call.kwargs["trust_remote_code"] is True
         mock_transformers["pipeline"].assert_not_called()
 
@@ -203,12 +208,35 @@ class TestGenerator:
             "Qwen3VLVideoProcessor requires the Torchvision library"
         )
 
-        Generator(model_name="Qwen/Qwen3.5-4B")
+        Generator(model_name="QuantTrio/Qwen3.5-9B-AWQ")
 
         mock_transformers["tokenizer_cls"].from_pretrained.assert_called_once_with(
-            "Qwen/Qwen3.5-4B", trust_remote_code=True
+            "QuantTrio/Qwen3.5-9B-AWQ", trust_remote_code=True
         )
         mock_transformers["image_text_model_cls"].from_pretrained.assert_called_once()
+        mock_transformers["pipeline"].assert_not_called()
+
+    def test_uses_openai_compatible_endpoint_when_configured(self, mock_transformers):
+        from src.generator import Generator
+
+        with patch("src.generator.settings") as mock_settings:
+            mock_settings.generator_model = "QuantTrio/Qwen3.5-9B-AWQ"
+            mock_settings.generator_base_url = "http://vllm:8000/v1"
+            mock_settings.generator_api_key = "local-vllm-key"
+            mock_settings.generator_timeout = 900
+            mock_settings.max_new_tokens = 384
+            mock_settings.temperature = 0.0
+            Generator()
+
+        mock_transformers["openai_chat_cls"].assert_called_once_with(
+            model="QuantTrio/Qwen3.5-9B-AWQ",
+            base_url="http://vllm:8000/v1",
+            api_key="local-vllm-key",
+            temperature=0.0,
+            max_tokens=384,
+            timeout=900,
+        )
+        mock_transformers["processor_cls"].from_pretrained.assert_not_called()
         mock_transformers["pipeline"].assert_not_called()
 
     def test_pipeline_uses_return_full_text_false(self, mock_transformers):

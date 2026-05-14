@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+from langchain_openai import ChatOpenAI
 from pydantic import ConfigDict, PrivateAttr
 from transformers import AutoModelForImageTextToText, AutoProcessor
 from transformers import AutoTokenizer
@@ -70,7 +71,7 @@ class Generator:
     Loads a Qwen model as a LangChain ChatModel.
 
     Memory requirements (approximate):
-      Qwen3.5-4B float16/bfloat16 = ~8 GB weights plus vision encoder overhead.
+      Qwen3.5-9B-AWQ keeps language weights in 4-bit AWQ format.
       CPU inference works, but is slow and defaults to float32 for compatibility.
 
     Device strategy:
@@ -81,9 +82,23 @@ class Generator:
     """
 
     def __init__(self, model_name: str | None = None):
+        use_configured_endpoint = model_name is None
         model_name = model_name or settings.generator_model
         _configure_transformers_logging()
         print(f"[Generator] Загрузка модели: {model_name} ...")
+
+        openai_base_url = getattr(settings, "generator_base_url", "")
+        if use_configured_endpoint and isinstance(openai_base_url, str) and openai_base_url.strip():
+            self._llm = ChatOpenAI(
+                model=model_name,
+                base_url=openai_base_url.strip(),
+                api_key=getattr(settings, "generator_api_key", "local-vllm-key"),
+                temperature=settings.temperature,
+                max_tokens=settings.max_new_tokens,
+                timeout=getattr(settings, "generator_timeout", 900),
+            )
+            print(f"[Generator] Готово: OpenAI-compatible endpoint {openai_base_url.strip()}")
+            return
 
         if _uses_image_text_to_text_model(model_name):
             self._llm = QwenImageTextChatModel(

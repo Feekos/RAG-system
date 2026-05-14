@@ -1,6 +1,6 @@
-# RAG-система: LangChain + Qdrant + Qwen3.5-4B
+# RAG-система: LangChain + Qdrant + Qwen3.5-9B-AWQ
 
-Проект реализует RAG-пайплайн на LangChain с Qdrant в роли векторной БД и локальным инференсом Qwen3.5-4B. Система поддерживает русский и английский языки и может работать в двух режимах:
+Проект реализует RAG-пайплайн на LangChain с Qdrant в роли векторной БД и локальным инференсом Qwen3.5-9B-AWQ. Система поддерживает русский и английский языки и может работать в двух режимах:
 
 - на удаленном сервере как Docker-сервис с HTTP API;
 - локально через Python CLI и тот же Qdrant в Docker.
@@ -13,7 +13,7 @@
 | RAG-пайплайн | LangChain LCEL | prompt -> retriever -> generator |
 | Векторная БД | Qdrant | Docker-сервис `qdrant` |
 | Эмбеддинги | `Octen/Octen-Embedding-0.6B` | 1024 измерений, 100+ языков |
-| Генерация | `Qwen/Qwen3.5-4B` | актуальная Qwen3.5-модель на 4B параметров |
+| Генерация | `QuantTrio/Qwen3.5-9B-AWQ` | Qwen3.5 9B в 4-bit AWQ |
 | Документы | LangChain loaders | `.txt`, `.md`, `.rst`, `.pdf` |
 
 ## Запуск на удаленном сервере в Docker
@@ -34,7 +34,9 @@ RAG_API_PORT=8000
 QDRANT_HOST=localhost
 QDRANT_HTTP_BIND=127.0.0.1
 QDRANT_GRPC_BIND=127.0.0.1
-GENERATOR_MODEL=Qwen/Qwen3.5-4B
+GENERATOR_MODEL=QuantTrio/Qwen3.5-9B-AWQ
+GENERATOR_BASE_URL=http://localhost:8001/v1
+GENERATOR_API_KEY=local-vllm-key
 SYSTEM_PROMPT="Ты полезный RAG-ассистент. Отвечай только по контексту и на языке вопроса."
 TORCH_DTYPE=float16
 ```
@@ -233,7 +235,7 @@ python main.py --query "Что такое RAG?"
     "chunk_overlap": [48, 64],
     "embedding_model": ["Octen/Octen-Embedding-0.6B"],
     "embedding_dim": [1024],
-    "generator_model": ["Qwen/Qwen3.5-4B"],
+    "generator_model": ["QuantTrio/Qwen3.5-9B-AWQ"],
     "max_new_tokens": [384],
     "temperature": [0.0]
   }
@@ -278,7 +280,7 @@ curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
 docker compose logs -f vllm
 ```
 
-Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Сам vLLM также ограничен по KV-cache: `VLLM_GPU_MEMORY_UTILIZATION=0.55`, `VLLM_MAX_MODEL_LEN=4096`, `VLLM_MAX_NUM_SEQS=1`. Это снижает риск `TimeoutError` и OOM на LLM-based метриках, особенно когда judge LLM, RAG-генератор и embeddings делят одну GPU.
+Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Сам vLLM запускает 4-bit AWQ модель с FP8 KV-cache: `VLLM_QUANTIZATION=awq`, `VLLM_KV_CACHE_DTYPE=fp8`, `VLLM_GPU_MEMORY_UTILIZATION=0.55`, `VLLM_MAX_MODEL_LEN=8192`, `VLLM_MAX_NUM_SEQS=1`. Это снижает риск `TimeoutError` и OOM на LLM-based метриках, особенно когда judge LLM, RAG-генератор и embeddings делят одну GPU.
 
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 
@@ -307,7 +309,9 @@ docker compose logs -f vllm
 | `QDRANT_COLLECTION` | `documents` | коллекция Qdrant |
 | `EMBEDDING_MODEL` | `Octen/Octen-Embedding-0.6B` | модель эмбеддингов |
 | `EMBEDDING_DIM` | `1024` | размерность векторов |
-| `GENERATOR_MODEL` | `Qwen/Qwen3.5-4B` | модель генерации |
+| `GENERATOR_MODEL` | `QuantTrio/Qwen3.5-9B-AWQ` | модель генерации |
+| `GENERATOR_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint генератора; в Docker переопределяется на `http://vllm:8000/v1` |
+| `GENERATOR_API_KEY` | `local-vllm-key` | API key генератора vLLM |
 | `SYSTEM_PROMPT` | пусто | системный промпт; если пусто, используется промпт по умолчанию |
 | `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |
 | `MAX_NEW_TOKENS` | `384` | максимум новых токенов |
@@ -321,7 +325,7 @@ docker compose logs -f vllm
 | `RAGAS_OUTPUT_DIR` | `eval/results` | папка отчетов RAGAS |
 | `RAGAS_TIMEOUT` | `900` | таймаут одной RAGAS-задачи в секундах |
 | `RAGAS_MAX_WORKERS` | `1` | параллелизм RAGAS; для локального vLLM лучше начинать с 1 |
-| `RAGAS_LLM_MODEL` | `Qwen/Qwen3.5-4B` | judge LLM, который обслуживает vLLM |
+| `RAGAS_LLM_MODEL` | `QuantTrio/Qwen3.5-9B-AWQ` | judge LLM, который обслуживает vLLM |
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
 | `RAGAS_LLM_MAX_TOKENS` | `512` | максимальный размер ответа judge LLM для RAGAS |
@@ -329,10 +333,12 @@ docker compose logs -f vllm
 | `RAGAS_LLM_WAIT_TIMEOUT` | `600` | сколько секунд ждать готовности `/v1/models` при старте оценки |
 | `RAGAS_LLM_WAIT_INTERVAL` | `5` | интервал между проверками готовности vLLM |
 | `VLLM_API_PORT` | `8001` | внешний порт OpenAI-compatible сервера vLLM |
-| `VLLM_MAX_MODEL_LEN` | `4096` | максимальная длина контекста vLLM; влияет на размер KV-cache |
+| `VLLM_MAX_MODEL_LEN` | `8192` | максимальная длина контекста vLLM; влияет на размер KV-cache |
 | `VLLM_MAX_NUM_SEQS` | `1` | максимум одновременных sequences для vLLM judge |
-| `VLLM_MAX_NUM_BATCHED_TOKENS` | `4096` | верхняя граница batch tokens для vLLM |
+| `VLLM_MAX_NUM_BATCHED_TOKENS` | `8192` | верхняя граница batch tokens для vLLM |
 | `VLLM_GPU_MEMORY_UTILIZATION` | `0.55` | доля GPU-памяти, которую vLLM может использовать под веса и KV-cache |
+| `VLLM_QUANTIZATION` | `awq` | тип weight quantization для vLLM |
+| `VLLM_KV_CACHE_DTYPE` | `fp8` | квантизованный тип KV-cache для vLLM |
 
 ## Данные для RAG
 
