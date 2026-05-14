@@ -82,13 +82,10 @@ services:
     command: ["python", "evaluate_ragas.py"]
 
   vllm:
-    image: ${VLLM_IMAGE:-vllm/vllm-openai:cu129-nightly}
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:nightly}
     gpus: all
     ipc: host
     profiles: ["eval"]
-    env_file:
-      - path: .env
-        required: false
     environment:
       HF_HOME: /models
       HF_TOKEN: ${HF_TOKEN:-}
@@ -114,6 +111,8 @@ services:
       - --reasoning-parser
       - qwen3
       - --language-model-only
+      - --default-chat-template-kwargs
+      - '{"enable_thinking": false}'
       - --gpu-memory-utilization
       - "${VLLM_GPU_MEMORY_UTILIZATION:-0.90}"
       - --api-key
