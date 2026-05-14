@@ -114,6 +114,12 @@ class TestQuery:
         call_kwargs = chain.invoke.call_args[0][0]
         assert "Qdrant stores vectors." in call_kwargs["context"]
 
+    def test_query_passes_answer_language_to_chain(self, pipeline):
+        p, _, _, _, _, chain = pipeline
+        p.query("Что такое Qdrant?")
+        call_kwargs = chain.invoke.call_args[0][0]
+        assert call_kwargs["answer_language"] == "Russian"
+
     def test_first_query_passes_empty_chat_history_to_chain(self, pipeline):
         p, _, _, _, _, chain = pipeline
         p.query("What is Qdrant?")

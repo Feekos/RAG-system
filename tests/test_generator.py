@@ -39,6 +39,12 @@ class TestBuildRagPrompt:
     def test_human_template_has_chat_history_placeholder(self):
         assert "{chat_history}" in self.human_template
 
+    def test_human_template_has_answer_language_placeholder(self):
+        assert "{answer_language}" in self.human_template
+
+    def test_human_template_disables_qwen_thinking(self):
+        assert "/no_think" in self.human_template
+
     def test_system_prompt_mentions_language_matching(self):
         """System prompt must instruct model to reply in user's language for multilingual support."""
         assert "языке" in self.system.lower()
@@ -64,7 +70,9 @@ class TestBuildRagPrompt:
         custom_prompt = "Отвечай как строгий RAG-ассистент."
         with patch("src.generator.settings") as mock_settings:
             mock_settings.system_prompt = custom_prompt
-            assert self.get_system_prompt() == custom_prompt
+            result = self.get_system_prompt()
+            assert result.startswith(custom_prompt)
+            assert "Thinking Process" in result
 
     def test_prompt_uses_env_system_prompt(self):
         custom_prompt = "Отвечай только одним предложением."
@@ -72,7 +80,11 @@ class TestBuildRagPrompt:
             mock_settings.system_prompt = custom_prompt
             prompt = self.build()
 
-        formatted = prompt.format_messages(question="Что такое RAG?", context="RAG text")
+        formatted = prompt.format_messages(
+            question="Что такое RAG?",
+            context="RAG text",
+            answer_language="Russian",
+        )
         assert formatted[0].content == custom_prompt
 
     def test_prompt_formats_with_question_and_context(self):
@@ -80,6 +92,7 @@ class TestBuildRagPrompt:
         formatted = prompt.format_messages(
             question="What is Qdrant?",
             context="[1] (source: test.txt)\nQdrant is a vector database.",
+            answer_language="English",
         )
         combined = " ".join(str(m.content) for m in formatted)
         assert "What is Qdrant?" in combined
@@ -90,6 +103,7 @@ class TestBuildRagPrompt:
         formatted = prompt.format_messages(
             question="Что такое Qdrant?",
             context="[1] (source: ru.txt)\nQdrant — векторная база данных.",
+            answer_language="Russian",
         )
         combined = " ".join(str(m.content) for m in formatted)
         assert "Что такое Qdrant?" in combined
@@ -315,3 +329,29 @@ class TestGenerator:
 
         logger_names = [call.args[0] for call in mock_hf_logging.get_logger.call_args_list]
         assert "transformers.pipelines.base" in logger_names
+
+
+def test_apply_qwen_chat_template_disables_thinking():
+    from src.generator import _apply_qwen_chat_template
+
+    processor = MagicMock()
+
+    _apply_qwen_chat_template(
+        processor,
+        [{"role": "user", "content": [{"type": "text", "text": "q"}]}],
+        add_generation_prompt=True,
+    )
+
+    assert processor.apply_chat_template.call_args.kwargs["enable_thinking"] is False
+
+
+def test_clean_model_answer_removes_think_block():
+    from src.generator import _clean_model_answer
+
+    assert _clean_model_answer("<think>hidden</think>\n\nОтвет [1].") == "Ответ [1]."
+
+
+def test_clean_model_answer_removes_final_answer_prefix():
+    from src.generator import _clean_model_answer
+
+    assert _clean_model_answer("Final Answer: Solar energy is used [1].") == "Solar energy is used [1]."

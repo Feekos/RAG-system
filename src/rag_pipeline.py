@@ -110,6 +110,7 @@ class RAGPipeline:
             "question": question,
             "context": context,
             "chat_history": self._format_chat_history(history),
+            "answer_language": self._detect_answer_language(question),
         }
 
         if stream:
@@ -181,6 +182,15 @@ class RAGPipeline:
     @staticmethod
     def _plain_text(value: str, limit: int = 1000) -> str:
         return " ".join(str(value).replace("\x00", " ").split())[:limit]
+
+    @staticmethod
+    def _detect_answer_language(question: str) -> str:
+        text = str(question)
+        cyrillic_count = sum(1 for char in text if "а" <= char.lower() <= "я" or char in "ёЁ")
+        latin_count = sum(1 for char in text if "a" <= char.lower() <= "z")
+        if cyrillic_count > latin_count:
+            return "Russian"
+        return "English"
 
     # ------------------------------------------------------------------ stats
 

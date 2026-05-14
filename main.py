@@ -14,7 +14,7 @@ if "HF_HOME" in os.environ:
 
 _BANNER = """
 ================================================
-  RAG v0.31 | Qwen-4B + Qdrant + Octen-Embedding-0.6B
+  RAG v0.32 | Qwen3.5-4B + Qdrant + Octen-Embedding-0.6B
 ================================================
 Система поддерживает следующие языки: EN, RU.
 Комманды:  /stats  /clear  /quit
@@ -37,7 +37,7 @@ def _run_interactive(pipeline, stream: bool) -> None:
             break
         if question.lower() == "/clear":
             pipeline.clear_history()
-            print("Контекст диалога очищен.")
+            print("Контекст диалога очищен.\n")
             continue
         if question.lower() == "/stats":
             import json

@@ -23,8 +23,15 @@ _SYSTEM_PROMPT = """\
 Ты полезный многоязычный ассистент. Отвечай на вопросы только на основе предоставленного контекста.
 Если ответа нет в контексте, ответь: "Ответ отсутствует в предоставленных документах."
 Всегда отвечай на том же языке, на котором задан вопрос.
+Не выводи ход рассуждений, Thinking Process, analysis, hidden reasoning, планы или промежуточные шаги.
+Выводи только финальный ответ для пользователя.
 Когда ссылаешься на конкретные фрагменты, указывай источники в формате [1], [2] и так далее.
 Отвечай кратко и законченными предложениями. Не обрывай ответ на середине предложения."""
+
+_NO_THINKING_PROMPT = (
+    "Не выводи ход рассуждений, Thinking Process, analysis, hidden reasoning, "
+    "планы или промежуточные шаги. Выводи только финальный ответ для пользователя."
+)
 
 _RAG_HUMAN_TEMPLATE = """\
 Conversation history:
@@ -33,7 +40,13 @@ Conversation history:
 Context:
 {context}
 
-Question: {question}"""
+Answer language:
+{answer_language}
+
+Question: {question}
+
+/no_think
+Answer directly. Do not include a thinking process."""
 
 
 def build_rag_prompt() -> ChatPromptTemplate:
@@ -48,7 +61,7 @@ def build_rag_prompt() -> ChatPromptTemplate:
 def _get_system_prompt() -> str:
     configured_prompt = getattr(settings, "system_prompt", "")
     if isinstance(configured_prompt, str) and configured_prompt.strip():
-        return configured_prompt.strip()
+        return f"{configured_prompt.strip()}\n{_NO_THINKING_PROMPT}"
     return _SYSTEM_PROMPT
 
 
@@ -162,7 +175,8 @@ class QwenImageTextChatModel(BaseChatModel):
         **kwargs: Any,
     ) -> ChatResult:
         hf_messages = [_to_qwen_message(message) for message in messages]
-        inputs = self._processor.apply_chat_template(
+        inputs = _apply_qwen_chat_template(
+            self._processor,
             hf_messages,
             add_generation_prompt=True,
             tokenize=True,
@@ -186,7 +200,7 @@ class QwenImageTextChatModel(BaseChatModel):
             outputs[0][prompt_tokens:],
             skip_special_tokens=True,
         ).strip()
-        text = _strip_qwen_thinking(text)
+        text = _clean_model_answer(text)
         if stop:
             text = _truncate_at_stop(text, stop)
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
@@ -233,6 +247,31 @@ def _strip_qwen_thinking(text: str) -> str:
     marker = "</think>"
     if marker in text:
         return text.split(marker, 1)[1].strip()
+    return text
+
+
+def _apply_qwen_chat_template(processor, messages: list[dict[str, Any]], **kwargs: Any):
+    try:
+        return processor.apply_chat_template(
+            messages,
+            enable_thinking=False,
+            **kwargs,
+        )
+    except TypeError as exc:
+        if "enable_thinking" not in str(exc):
+            raise
+        return processor.apply_chat_template(messages, **kwargs)
+
+
+def _clean_model_answer(text: str) -> str:
+    text = _strip_qwen_thinking(str(text)).strip()
+    for marker in ("Final Answer:", "Final answer:", "Ответ:", "Итоговый ответ:"):
+        if marker in text:
+            text = text.split(marker, 1)[1].strip()
+            break
+    if text.lower().startswith("thinking process:"):
+        parts = text.split("\n\n", 1)
+        text = parts[1].strip() if len(parts) > 1 else ""
     return text
 
 
