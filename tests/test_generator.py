@@ -182,6 +182,21 @@ class TestGenerator:
         assert image_text_call.kwargs["trust_remote_code"] is True
         mock_transformers["pipeline"].assert_not_called()
 
+    def test_qwen35_falls_back_to_tokenizer_without_torchvision(self, mock_transformers):
+        from src.generator import Generator
+
+        mock_transformers["processor_cls"].from_pretrained.side_effect = ImportError(
+            "Qwen3VLVideoProcessor requires the Torchvision library"
+        )
+
+        Generator(model_name="Qwen/Qwen3.5-4B")
+
+        mock_transformers["tokenizer_cls"].from_pretrained.assert_called_once_with(
+            "Qwen/Qwen3.5-4B", trust_remote_code=True
+        )
+        mock_transformers["image_text_model_cls"].from_pretrained.assert_called_once()
+        mock_transformers["pipeline"].assert_not_called()
+
     def test_pipeline_uses_return_full_text_false(self, mock_transformers):
         """return_full_text=False ensures only new tokens are returned, not the full prompt."""
         from src.generator import Generator

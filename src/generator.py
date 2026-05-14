@@ -139,7 +139,7 @@ class QwenImageTextChatModel(BaseChatModel):
             max_new_tokens=max_new_tokens,
             temperature=temperature,
         )
-        self._processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+        self._processor = _load_qwen35_processor(model_name)
         model_kwargs: dict[str, Any] = {
             "trust_remote_code": True,
             "dtype": dtype,
@@ -194,6 +194,21 @@ class QwenImageTextChatModel(BaseChatModel):
 
 def _uses_image_text_to_text_model(model_name: str) -> bool:
     return "qwen3.5" in model_name.lower()
+
+
+def _load_qwen35_processor(model_name: str):
+    try:
+        return AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+    except ImportError as exc:
+        if "Torchvision" not in str(exc) and "torchvision" not in str(exc):
+            raise
+        print(
+            "[Generator] torchvision не найден; используется text-only tokenizer для Qwen3.5. "
+            "Для image/video inputs установите torchvision и пересоберите Docker-образ."
+        )
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        tokenizer.clean_up_tokenization_spaces = False
+        return tokenizer
 
 
 def _to_qwen_message(message: BaseMessage) -> dict[str, Any]:
