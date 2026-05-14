@@ -27,17 +27,17 @@ def _run_interactive(pipeline, stream: bool) -> None:
         try:
             question = input("Вы: ").strip()
         except (KeyboardInterrupt, EOFError):
-            print("\Чат завершен!")
+            print("\n\Чат завершен!\n")
             break
 
         if not question:
             continue
         if question.lower() in ("/quit", "/exit", "quit", "exit"):
-            print("Чат завершен!")
+            print("\nЧат завершен!\n")
             break
         if question.lower() == "/clear":
             pipeline.clear_history()
-            print("Контекст диалога очищен.\n")
+            print("\nКонтекст диалога очищен.\n")
             continue
         if question.lower() == "/stats":
             import json
