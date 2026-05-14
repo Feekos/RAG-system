@@ -82,7 +82,12 @@ services:
     command: ["python", "evaluate_ragas.py"]
 
   vllm:
-    image: ${VLLM_IMAGE:-vllm/vllm-openai:nightly}
+    build:
+      context: .
+      dockerfile: Dockerfile.vllm
+      args:
+        VLLM_BASE_IMAGE: ${VLLM_BASE_IMAGE:-vllm/vllm-openai:nightly}
+    image: ${VLLM_PATCHED_IMAGE:-local-vllm-qwen35:latest}
     gpus: all
     ipc: host
     profiles: ["eval"]

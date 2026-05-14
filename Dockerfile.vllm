@@ -1,0 +1,19 @@
+ARG VLLM_BASE_IMAGE=vllm/vllm-openai:nightly
+FROM ${VLLM_BASE_IMAGE}
+
+# Current Qwen3.5-capable vLLM images may ship an optional nixl_ep wheel linked
+# against a CUDA runtime that is absent from the image. If the package exists,
+# vLLM eagerly imports it while inspecting Qwen3.5 and crashes before startup.
+# Removing the optional package makes vLLM fall back to the regular all-to-all
+# backend without pinning or downgrading vLLM itself.
+RUN python3 -c "import pathlib, shutil, site; \
+bases = [pathlib.Path(p) for p in site.getsitepackages()]; \
+patterns = ('nixl_ep', 'nixl_ep-*', 'nixl_ep_*.dist-info'); \
+targets = [path for base in bases for pattern in patterns for path in base.glob(pattern)]; \
+[(shutil.rmtree(path, ignore_errors=True) if path.is_dir() else path.unlink(missing_ok=True)) for path in targets]; \
+print('Removed optional nixl_ep paths:', [str(path) for path in targets])"
+
+COPY docker/vllm-entrypoint.sh /usr/local/bin/rag-vllm-entrypoint
+RUN chmod +x /usr/local/bin/rag-vllm-entrypoint
+
+ENTRYPOINT ["rag-vllm-entrypoint"]
