@@ -280,7 +280,7 @@ curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
 docker compose logs -f vllm
 ```
 
-Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Сам vLLM запускает 4-bit AWQ модель с FP8 KV-cache: `VLLM_QUANTIZATION=awq`, `VLLM_KV_CACHE_DTYPE=fp8`, `VLLM_GPU_MEMORY_UTILIZATION=0.55`, `VLLM_MAX_MODEL_LEN=8192`, `VLLM_MAX_NUM_SEQS=1`. Это снижает риск `TimeoutError` и OOM на LLM-based метриках, особенно когда judge LLM, RAG-генератор и embeddings делят одну GPU.
+Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=1536`. Сам vLLM запускает 4-bit AWQ модель с FP8 KV-cache: `VLLM_QUANTIZATION=awq`, `VLLM_KV_CACHE_DTYPE=fp8`, `VLLM_GPU_MEMORY_UTILIZATION=0.55`, `VLLM_MAX_MODEL_LEN=8192`, `VLLM_MAX_NUM_SEQS=1`. Это снижает риск `TimeoutError` и OOM на LLM-based метриках, особенно когда judge LLM, RAG-генератор и embeddings делят одну GPU. Если отдельный RAGAS-запрос все равно не завершился, прогон не падает целиком: RAGAS запишет пропуск/NaN для соответствующей метрики.
 
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 
@@ -328,7 +328,7 @@ docker compose logs -f vllm
 | `RAGAS_LLM_MODEL` | `QuantTrio/Qwen3.5-9B-AWQ` | judge LLM, который обслуживает vLLM |
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
-| `RAGAS_LLM_MAX_TOKENS` | `512` | максимальный размер ответа judge LLM для RAGAS |
+| `RAGAS_LLM_MAX_TOKENS` | `1536` | максимальный размер ответа judge LLM для RAGAS |
 | `RAGAS_LLM_TIMEOUT` | `900` | HTTP timeout запросов к vLLM judge LLM в секундах |
 | `RAGAS_LLM_WAIT_TIMEOUT` | `600` | сколько секунд ждать готовности `/v1/models` при старте оценки |
 | `RAGAS_LLM_WAIT_INTERVAL` | `5` | интервал между проверками готовности vLLM |

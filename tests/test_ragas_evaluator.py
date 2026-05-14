@@ -14,6 +14,7 @@ from src.ragas_evaluator import (
     build_ragas_samples,
     load_ragas_config,
     load_testset,
+    run_ragas_evaluation,
     run_ragas_experiments,
     write_ragas_outputs,
 )
@@ -130,6 +131,49 @@ def test_run_ragas_experiments_writes_leaderboard(tmp_path):
     assert mock_run.call_count == 2
     assert result["leaderboard_csv"].exists()
     assert result["leaderboard_markdown"].exists()
+
+
+def test_run_ragas_evaluation_does_not_raise_on_single_metric_failure(tmp_path):
+    testset = tmp_path / "testset.jsonl"
+    testset.write_text(
+        '{"question":"What is RAG?","reference":"Retrieval plus generation."}\n',
+        encoding="utf-8",
+    )
+    config = RagasRunConfig(
+        testset_path=testset,
+        output_dir=tmp_path / "results",
+        metrics=[],
+        write_csv=False,
+        write_markdown=False,
+    )
+    pipeline = MagicMock()
+    response = MagicMock()
+    response.answer = "RAG combines retrieval and generation."
+    response.retrieved_docs = []
+    pipeline.query.return_value = response
+
+    class FakeDataset:
+        @classmethod
+        def from_list(cls, rows):
+            return rows
+
+    class FakeResult:
+        def to_pandas(self):
+            return MagicMock(to_dict=MagicMock(return_value=[{"faithfulness": None}]))
+
+    def fake_evaluate(**kwargs):
+        assert kwargs["raise_exceptions"] is False
+        return FakeResult()
+
+    with (
+        patch("src.ragas_evaluator._import_ragas_runtime", return_value=(fake_evaluate, FakeDataset)),
+        patch("src.ragas_evaluator._build_evaluator_llm", return_value=MagicMock()),
+        patch("src.ragas_evaluator._build_evaluator_embeddings", return_value=MagicMock()),
+        patch("src.ragas_evaluator._build_metrics", return_value=[]),
+    ):
+        result = run_ragas_evaluation(config, pipeline=pipeline)
+
+    assert result["json"].exists()
 
 
 def test_build_evaluator_llm_uses_openai_compatible_endpoint():

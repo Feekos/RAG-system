@@ -163,7 +163,7 @@ def run_ragas_evaluation(
     if run_config is not None and "run_config" in inspect.signature(evaluate).parameters:
         evaluate_kwargs["run_config"] = run_config
     if "raise_exceptions" in inspect.signature(evaluate).parameters:
-        evaluate_kwargs["raise_exceptions"] = True
+        evaluate_kwargs["raise_exceptions"] = False
     result = evaluate(**evaluate_kwargs)
 
     dataframe = result.to_pandas()

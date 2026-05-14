@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     ragas_llm_base_url: str = Field("http://localhost:8001/v1", alias="RAGAS_LLM_BASE_URL")
     ragas_llm_api_key: str = Field("local-vllm-key", alias="RAGAS_LLM_API_KEY")
     ragas_llm_temperature: float = Field(0.0, alias="RAGAS_LLM_TEMPERATURE")
-    ragas_llm_max_tokens: int = Field(512, alias="RAGAS_LLM_MAX_TOKENS")
+    ragas_llm_max_tokens: int = Field(1536, alias="RAGAS_LLM_MAX_TOKENS")
     ragas_llm_timeout: int = Field(900, alias="RAGAS_LLM_TIMEOUT")
     ragas_llm_wait_timeout: int = Field(600, alias="RAGAS_LLM_WAIT_TIMEOUT")
     ragas_llm_wait_interval: float = Field(5.0, alias="RAGAS_LLM_WAIT_INTERVAL")
