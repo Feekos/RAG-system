@@ -5,8 +5,28 @@
     "faithfulness",
     "answer_relevancy",
     "context_precision",
-    "context_recall"
+    "context_recall",
+    "context_entities_recall",
+    "noise_sensitivity",
+    "semantic_similarity",
+    "factual_correctness",
+    "answer_accuracy",
+    "context_relevance",
+    "response_groundedness"
   ],
+  "metric_descriptions": {
+    "faithfulness": "Насколько ответ опирается на извлеченный контекст и не добавляет неподтвержденные утверждения.",
+    "answer_relevancy": "Насколько ответ соответствует вопросу пользователя.",
+    "context_precision": "Насколько высоко в retrieved_contexts расположены действительно полезные фрагменты.",
+    "context_recall": "Насколько retrieved_contexts покрывают информацию, нужную для эталонного ответа.",
+    "context_entities_recall": "Насколько retrieved_contexts покрывают ключевые сущности из эталонного ответа.",
+    "noise_sensitivity": "Насколько ответ устойчив к шумным или нерелевантным фрагментам в контексте; ниже лучше.",
+    "semantic_similarity": "Семантическая близость ответа к эталонному ответу.",
+    "factual_correctness": "Фактическая корректность ответа относительно эталонного ответа.",
+    "answer_accuracy": "LLM-as-a-judge оценка точности ответа относительно эталона.",
+    "context_relevance": "Насколько извлеченные фрагменты релевантны вопросу пользователя.",
+    "response_groundedness": "Насколько утверждения в ответе подтверждаются retrieved_contexts."
+  },
   "llm": {
     "use_rag_generator": true
   },
@@ -23,11 +43,11 @@
     "top_k": [3, 5],
     "chunk_size": [384, 512],
     "chunk_overlap": [48, 64],
-    "embedding_model": ["Octen/Octen-Embedding-0.6B"],
+    "embedding_model": ["Octen/Octen-Embedding-0.6B", "Octen/Octen-Embedding-4B"],
     "embedding_dim": [1024],
-    "generator_model": ["QuantTrio/Qwen3.5-9B-AWQ"],
-    "max_new_tokens": [384],
-    "temperature": [0.0]
+    "generator_model": ["QuantTrio/Qwen3.5-9B-AWQ", "Qwen/Qwen3.5-4B"],
+    "max_new_tokens": [384, 512, 1536],
+    "temperature": [0.0, 0.2]
   },
   "outputs": {
     "json": true,

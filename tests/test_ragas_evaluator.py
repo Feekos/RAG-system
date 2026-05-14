@@ -148,6 +148,16 @@ def test_summarize_scores_ignores_nan_values():
     assert counts["answer_relevancy"] == 2
 
 
+def test_default_metrics_include_extended_rag_metrics():
+    from src.ragas_evaluator import DEFAULT_METRICS
+
+    assert "context_entities_recall" in DEFAULT_METRICS
+    assert "noise_sensitivity" in DEFAULT_METRICS
+    assert "semantic_similarity" in DEFAULT_METRICS
+    assert "factual_correctness" in DEFAULT_METRICS
+    assert "response_groundedness" in DEFAULT_METRICS
+
+
 def test_run_ragas_evaluation_does_not_raise_on_single_metric_failure(tmp_path):
     testset = tmp_path / "testset.jsonl"
     testset.write_text(

@@ -221,7 +221,14 @@ python main.py --query "Что такое RAG?"
     "faithfulness",
     "answer_relevancy",
     "context_precision",
-    "context_recall"
+    "context_recall",
+    "context_entities_recall",
+    "noise_sensitivity",
+    "semantic_similarity",
+    "factual_correctness",
+    "answer_accuracy",
+    "context_relevance",
+    "response_groundedness"
   ],
   "rag": {
     "lazy_generator": true,

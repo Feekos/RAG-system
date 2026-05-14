@@ -25,6 +25,13 @@ DEFAULT_METRICS = [
     "answer_relevancy",
     "context_precision",
     "context_recall",
+    "context_entities_recall",
+    "noise_sensitivity",
+    "semantic_similarity",
+    "factual_correctness",
+    "answer_accuracy",
+    "context_relevance",
+    "response_groundedness",
 ]
 
 
@@ -383,6 +390,73 @@ def _build_metrics(metric_names: List[str], evaluator_llm: Any, evaluator_embedd
                 _metric_from_candidates(
                     ragas_metrics,
                     ["LLMContextRecall", "ContextRecall", "context_recall"],
+                    llm=evaluator_llm,
+                )
+            )
+        elif normalized == "context_entities_recall":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    [
+                        "ContextEntityRecall",
+                        "ContextEntitiesRecall",
+                        "context_entity_recall",
+                        "context_entities_recall",
+                    ],
+                    llm=evaluator_llm,
+                )
+            )
+        elif normalized == "noise_sensitivity":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    ["NoiseSensitivity", "noise_sensitivity"],
+                    llm=evaluator_llm,
+                )
+            )
+        elif normalized == "semantic_similarity":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    [
+                        "SemanticSimilarity",
+                        "AnswerSimilarity",
+                        "answer_similarity",
+                        "semantic_similarity",
+                    ],
+                    embeddings=evaluator_embeddings,
+                )
+            )
+        elif normalized == "factual_correctness":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    ["FactualCorrectness", "AnswerCorrectness", "answer_correctness", "factual_correctness"],
+                    llm=evaluator_llm,
+                    embeddings=evaluator_embeddings,
+                )
+            )
+        elif normalized == "answer_accuracy":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    ["AnswerAccuracy", "answer_accuracy"],
+                    llm=evaluator_llm,
+                )
+            )
+        elif normalized == "context_relevance":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    ["ContextRelevance", "ContextRelevancy", "context_relevance", "context_relevancy"],
+                    llm=evaluator_llm,
+                )
+            )
+        elif normalized == "response_groundedness":
+            built.append(
+                _metric_from_candidates(
+                    ragas_metrics,
+                    ["ResponseGroundedness", "response_groundedness"],
                     llm=evaluator_llm,
                 )
             )
