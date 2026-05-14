@@ -112,14 +112,18 @@ services:
       - --dtype
       - auto
       - --max-model-len
-      - "${VLLM_MAX_MODEL_LEN:-8192}"
+      - "${VLLM_MAX_MODEL_LEN:-4096}"
+      - --max-num-seqs
+      - "${VLLM_MAX_NUM_SEQS:-1}"
+      - --max-num-batched-tokens
+      - "${VLLM_MAX_NUM_BATCHED_TOKENS:-4096}"
       - --reasoning-parser
       - qwen3
       - --language-model-only
       - --default-chat-template-kwargs
       - '{"enable_thinking": false}'
       - --gpu-memory-utilization
-      - "${VLLM_GPU_MEMORY_UTILIZATION:-0.90}"
+      - "${VLLM_GPU_MEMORY_UTILIZATION:-0.55}"
       - --api-key
       - ${RAGAS_LLM_API_KEY:-local-vllm-key}
       - --generation-config

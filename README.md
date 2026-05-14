@@ -278,7 +278,7 @@ curl -H "Authorization: Bearer local-vllm-key" http://localhost:8001/v1/models
 docker compose logs -f vllm
 ```
 
-Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Это снижает риск `TimeoutError` на LLM-based метриках, особенно на `faithfulness` и `answer_relevancy`, которые делают дополнительные запросы к judge LLM.
+Для локального vLLM оценка RAGAS запускается с консервативным параллелизмом: `RAGAS_MAX_WORKERS=1`, `RAGAS_TIMEOUT=900` и `RAGAS_LLM_MAX_TOKENS=512`. Сам vLLM также ограничен по KV-cache: `VLLM_GPU_MEMORY_UTILIZATION=0.55`, `VLLM_MAX_MODEL_LEN=4096`, `VLLM_MAX_NUM_SEQS=1`. Это снижает риск `TimeoutError` и OOM на LLM-based метриках, особенно когда judge LLM, RAG-генератор и embeddings делят одну GPU.
 
 Для подбора оптимальной комбинации для продакшена стоит использовать `experiments` в `eval/ragas_config.json`. 
 Используется Декартово произведение: например `top_k=[3,5]`, `chunk_size=[384,512]`, `chunk_overlap=[48,64]` даст 8 запусков. 
@@ -329,6 +329,10 @@ docker compose logs -f vllm
 | `RAGAS_LLM_WAIT_TIMEOUT` | `600` | сколько секунд ждать готовности `/v1/models` при старте оценки |
 | `RAGAS_LLM_WAIT_INTERVAL` | `5` | интервал между проверками готовности vLLM |
 | `VLLM_API_PORT` | `8001` | внешний порт OpenAI-compatible сервера vLLM |
+| `VLLM_MAX_MODEL_LEN` | `4096` | максимальная длина контекста vLLM; влияет на размер KV-cache |
+| `VLLM_MAX_NUM_SEQS` | `1` | максимум одновременных sequences для vLLM judge |
+| `VLLM_MAX_NUM_BATCHED_TOKENS` | `4096` | верхняя граница batch tokens для vLLM |
+| `VLLM_GPU_MEMORY_UTILIZATION` | `0.55` | доля GPU-памяти, которую vLLM может использовать под веса и KV-cache |
 
 ## Данные для RAG
 
