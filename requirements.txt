@@ -13,7 +13,7 @@ qdrant-client>=1.9.0
 
 # Models
 sentence-transformers>=3.0.0
-transformers>=4.51.0
+transformers>=5.8.0
 torch>=2.3.0
 accelerate>=0.30.0
 

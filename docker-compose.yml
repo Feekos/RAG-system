@@ -16,7 +16,7 @@ services:
       TRANSFORMERS_CACHE: /models
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -46,7 +46,7 @@ services:
       TRANSFORMERS_CACHE: /models
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -74,7 +74,7 @@ services:
       TRANSFORMERS_CACHE: /models
       RAGAS_LLM_BASE_URL: ${RAGAS_LLM_DOCKER_BASE_URL:-http://vllm:8000/v1}
       RAGAS_LLM_API_KEY: ${RAGAS_LLM_API_KEY:-local-vllm-key}
-      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      RAGAS_LLM_MODEL: ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
     volumes:
       - ./data:/app/data
       - ./eval:/app/eval
@@ -82,7 +82,7 @@ services:
     command: ["python", "evaluate_ragas.py"]
 
   vllm:
-    image: ${VLLM_IMAGE:-vllm/vllm-openai:v0.8.5}
+    image: ${VLLM_IMAGE:-vllm/vllm-openai:cu129-nightly}
     gpus: all
     ipc: host
     profiles: ["eval"]
@@ -104,13 +104,16 @@ services:
       - --port
       - "8000"
       - --model
-      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
       - --served-model-name
-      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3-4B-Instruct-2507}
+      - ${RAGAS_LLM_MODEL:-Qwen/Qwen3.5-4B}
       - --dtype
       - auto
       - --max-model-len
       - "${VLLM_MAX_MODEL_LEN:-8192}"
+      - --reasoning-parser
+      - qwen3
+      - --language-model-only
       - --gpu-memory-utilization
       - "${VLLM_GPU_MEMORY_UTILIZATION:-0.90}"
       - --api-key

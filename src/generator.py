@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import Any
 
 import torch
+from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_huggingface import ChatHuggingFace, HuggingFacePipeline
+from pydantic import ConfigDict, PrivateAttr
+from transformers import AutoModelForImageTextToText, AutoProcessor
 from transformers import AutoTokenizer
 from transformers import pipeline as hf_pipeline
 from transformers.utils import logging as hf_logging
@@ -48,10 +54,10 @@ def _get_system_prompt() -> str:
 
 class Generator:
     """
-    Loads a Qwen causal LM as a LangChain ChatModel via HuggingFacePipeline.
+    Loads a Qwen model as a LangChain ChatModel.
 
     Memory requirements (approximate):
-      Qwen3-4B-Instruct-2507 float16/bfloat16 = ~8 GB weights.
+      Qwen3.5-4B float16/bfloat16 = ~8 GB weights plus vision encoder overhead.
       CPU inference works, but is slow and defaults to float32 for compatibility.
 
     Device strategy:
@@ -65,6 +71,16 @@ class Generator:
         model_name = model_name or settings.generator_model
         _configure_transformers_logging()
         print(f"[Generator] Загрузка модели: {model_name} ...")
+
+        if _uses_image_text_to_text_model(model_name):
+            self._llm = QwenImageTextChatModel(
+                model_name=model_name,
+                max_new_tokens=settings.max_new_tokens,
+                temperature=settings.temperature,
+                dtype=_resolve_dtype(getattr(settings, "torch_dtype", "auto")),
+            )
+            print("[Generator] Готово.")
+            return
 
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
         tokenizer.clean_up_tokenization_spaces = False
@@ -103,6 +119,115 @@ class Generator:
     @property
     def langchain(self) -> BaseChatModel:
         return self._llm
+
+
+class QwenImageTextChatModel(BaseChatModel):
+    """Minimal LangChain chat wrapper for Qwen3.5 image-text-to-text checkpoints."""
+
+    model_name: str
+    max_new_tokens: int
+    temperature: float
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    _processor: Any = PrivateAttr()
+    _model: Any = PrivateAttr()
+
+    def __init__(self, *, model_name: str, max_new_tokens: int, temperature: float, dtype: Any):
+        super().__init__(
+            model_name=model_name,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+        )
+        self._processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
+        model_kwargs: dict[str, Any] = {
+            "trust_remote_code": True,
+            "dtype": dtype,
+        }
+        if torch.cuda.is_available():
+            model_kwargs["device_map"] = "auto"
+
+        self._model = AutoModelForImageTextToText.from_pretrained(model_name, **model_kwargs)
+        self._model.eval()
+
+    @property
+    def _llm_type(self) -> str:
+        return "qwen-image-text-chat"
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        hf_messages = [_to_qwen_message(message) for message in messages]
+        inputs = self._processor.apply_chat_template(
+            hf_messages,
+            add_generation_prompt=True,
+            tokenize=True,
+            return_dict=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(self._model.device)
+
+        generate_kwargs: dict[str, Any] = {
+            "max_new_tokens": kwargs.get("max_new_tokens", self.max_new_tokens),
+            "do_sample": self.temperature > 0,
+        }
+        if self.temperature > 0:
+            generate_kwargs["temperature"] = self.temperature
+
+        with torch.inference_mode():
+            outputs = self._model.generate(**inputs, **generate_kwargs)
+
+        prompt_tokens = inputs["input_ids"].shape[-1]
+        text = self._processor.decode(
+            outputs[0][prompt_tokens:],
+            skip_special_tokens=True,
+        ).strip()
+        text = _strip_qwen_thinking(text)
+        if stop:
+            text = _truncate_at_stop(text, stop)
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
+
+
+def _uses_image_text_to_text_model(model_name: str) -> bool:
+    return "qwen3.5" in model_name.lower()
+
+
+def _to_qwen_message(message: BaseMessage) -> dict[str, Any]:
+    role_by_type = {
+        "system": "system",
+        "human": "user",
+        "ai": "assistant",
+    }
+    role = role_by_type.get(message.type, message.type)
+    return {"role": role, "content": _to_qwen_content(message.content)}
+
+
+def _to_qwen_content(content: Any) -> list[dict[str, Any]]:
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}]
+    if isinstance(content, list):
+        return content
+    return [{"type": "text", "text": str(content)}]
+
+
+def _strip_qwen_thinking(text: str) -> str:
+    marker = "</think>"
+    if marker in text:
+        return text.split(marker, 1)[1].strip()
+    return text
+
+
+def _truncate_at_stop(text: str, stop: list[str]) -> str:
+    cut = len(text)
+    for token in stop:
+        index = text.find(token)
+        if index != -1:
+            cut = min(cut, index)
+    return text[:cut].rstrip()
 
 
 def _resolve_dtype(dtype_name: str):

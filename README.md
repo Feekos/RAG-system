@@ -13,7 +13,7 @@
 | RAG-пайплайн | LangChain LCEL | prompt -> retriever -> generator |
 | Векторная БД | Qdrant | Docker-сервис `qdrant` |
 | Эмбеддинги | `Octen/Octen-Embedding-0.6B` | 1024 измерений, 100+ языков |
-| Генерация | `Qwen/Qwen3-4B-Instruct-2507` | instruct-модель на 4B параметров |
+| Генерация | `Qwen/Qwen3.5-4B` | актуальная Qwen3.5-модель на 4B параметров |
 | Документы | LangChain loaders | `.txt`, `.md`, `.rst`, `.pdf` |
 
 ## Запуск на удаленном сервере в Docker
@@ -34,7 +34,7 @@ RAG_API_PORT=8000
 QDRANT_HOST=localhost
 QDRANT_HTTP_BIND=127.0.0.1
 QDRANT_GRPC_BIND=127.0.0.1
-GENERATOR_MODEL=Qwen/Qwen3-4B-Instruct-2507
+GENERATOR_MODEL=Qwen/Qwen3.5-4B
 SYSTEM_PROMPT="Ты полезный RAG-ассистент. Отвечай только по контексту и на языке вопроса."
 TORCH_DTYPE=float16
 ```
@@ -233,7 +233,7 @@ python main.py --query "Что такое RAG?"
     "chunk_overlap": [48, 64],
     "embedding_model": ["Octen/Octen-Embedding-0.6B"],
     "embedding_dim": [1024],
-    "generator_model": ["Qwen/Qwen3-4B-Instruct-2507"],
+    "generator_model": ["Qwen/Qwen3.5-4B"],
     "max_new_tokens": [384],
     "temperature": [0.0]
   }
@@ -307,7 +307,7 @@ docker compose logs -f vllm
 | `QDRANT_COLLECTION` | `documents` | коллекция Qdrant |
 | `EMBEDDING_MODEL` | `Octen/Octen-Embedding-0.6B` | модель эмбеддингов |
 | `EMBEDDING_DIM` | `1024` | размерность векторов |
-| `GENERATOR_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | модель генерации |
+| `GENERATOR_MODEL` | `Qwen/Qwen3.5-4B` | модель генерации |
 | `SYSTEM_PROMPT` | пусто | системный промпт; если пусто, используется промпт по умолчанию |
 | `TORCH_DTYPE` | `float16` | `auto`, `float16`, `bfloat16`, `float32` |
 | `MAX_NEW_TOKENS` | `384` | максимум новых токенов |
@@ -321,7 +321,7 @@ docker compose logs -f vllm
 | `RAGAS_OUTPUT_DIR` | `eval/results` | папка отчетов RAGAS |
 | `RAGAS_TIMEOUT` | `900` | таймаут одной RAGAS-задачи в секундах |
 | `RAGAS_MAX_WORKERS` | `1` | параллелизм RAGAS; для локального vLLM лучше начинать с 1 |
-| `RAGAS_LLM_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | judge LLM, который обслуживает vLLM |
+| `RAGAS_LLM_MODEL` | `Qwen/Qwen3.5-4B` | judge LLM, который обслуживает vLLM |
 | `RAGAS_LLM_BASE_URL` | `http://localhost:8001/v1` | OpenAI-compatible endpoint для локального запуска Python |
 | `RAGAS_LLM_API_KEY` | `local-vllm-key` | API key для vLLM |
 | `RAGAS_LLM_MAX_TOKENS` | `512` | максимальный размер ответа judge LLM для RAGAS |

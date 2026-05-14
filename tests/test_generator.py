@@ -104,6 +104,8 @@ class TestGenerator:
         """Mock all HuggingFace and LangChain model loading."""
         with (
             patch("src.generator.AutoTokenizer") as mock_tokenizer_cls,
+            patch("src.generator.AutoProcessor") as mock_processor_cls,
+            patch("src.generator.AutoModelForImageTextToText") as mock_image_text_model_cls,
             patch("src.generator.hf_pipeline") as mock_pipeline,
             patch("src.generator.HuggingFacePipeline") as mock_hf_pipe_cls,
             patch("src.generator.ChatHuggingFace") as mock_chat_cls,
@@ -111,6 +113,9 @@ class TestGenerator:
         ):
             mock_tokenizer = MagicMock()
             mock_tokenizer_cls.from_pretrained.return_value = mock_tokenizer
+            mock_processor_cls.from_pretrained.return_value = MagicMock()
+            mock_image_text_model = MagicMock()
+            mock_image_text_model_cls.from_pretrained.return_value = mock_image_text_model
 
             mock_torch.cuda.is_available.return_value = False
             mock_torch.float32 = "float32"
@@ -124,6 +129,9 @@ class TestGenerator:
 
             yield {
                 "tokenizer_cls": mock_tokenizer_cls,
+                "processor_cls": mock_processor_cls,
+                "image_text_model_cls": mock_image_text_model_cls,
+                "image_text_model": mock_image_text_model,
                 "pipeline": mock_pipeline,
                 "hf_pipe_cls": mock_hf_pipe_cls,
                 "chat_cls": mock_chat_cls,
@@ -159,6 +167,20 @@ class TestGenerator:
         Generator(model_name="Qwen/Qwen1.5-4B-Chat")
         task_arg = mock_transformers["pipeline"].call_args.args[0]
         assert task_arg == "text-generation"
+
+    def test_qwen35_uses_image_text_to_text_model(self, mock_transformers):
+        from src.generator import Generator
+
+        Generator(model_name="Qwen/Qwen3.5-4B")
+
+        mock_transformers["processor_cls"].from_pretrained.assert_called_once_with(
+            "Qwen/Qwen3.5-4B", trust_remote_code=True
+        )
+        mock_transformers["image_text_model_cls"].from_pretrained.assert_called_once()
+        image_text_call = mock_transformers["image_text_model_cls"].from_pretrained.call_args
+        assert image_text_call.args[0] == "Qwen/Qwen3.5-4B"
+        assert image_text_call.kwargs["trust_remote_code"] is True
+        mock_transformers["pipeline"].assert_not_called()
 
     def test_pipeline_uses_return_full_text_false(self, mock_transformers):
         """return_full_text=False ensures only new tokens are returned, not the full prompt."""
