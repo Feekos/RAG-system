@@ -4,6 +4,7 @@ import csv
 import inspect
 import itertools
 import json
+import math
 import os
 import time
 import urllib.error
@@ -168,9 +169,9 @@ def run_ragas_evaluation(
 
     dataframe = result.to_pandas()
     result_rows = _to_jsonable(dataframe.to_dict(orient="records"))
-    summary = _summarize_scores(result_rows)
+    summary, summary_counts = _summarize_scores(result_rows)
     paths = write_ragas_outputs(config, samples, result_rows, summary)
-    return {"summary": summary, **paths}
+    return {"summary": summary, "summary_counts": summary_counts, **paths}
 
 
 def run_ragas_experiments(config: RagasRunConfig) -> dict[str, Any]:
@@ -426,7 +427,7 @@ def _accepted_kwargs(cls: type, kwargs: dict[str, Any]) -> dict[str, Any]:
         return kwargs
 
 
-def _summarize_scores(rows: List[dict[str, Any]]) -> dict[str, float]:
+def _summarize_scores(rows: List[dict[str, Any]]) -> tuple[dict[str, float], dict[str, int]]:
     numeric: dict[str, List[float]] = {}
     excluded = {"user_input", "response", "retrieved_contexts", "reference", "reference_contexts"}
     for row in rows:
@@ -434,8 +435,12 @@ def _summarize_scores(rows: List[dict[str, Any]]) -> dict[str, float]:
             if key in excluded:
                 continue
             if isinstance(value, (int, float)):
-                numeric.setdefault(key, []).append(float(value))
-    return {key: sum(values) / len(values) for key, values in numeric.items() if values}
+                number = float(value)
+                if math.isfinite(number):
+                    numeric.setdefault(key, []).append(number)
+    summary = {key: sum(values) / len(values) for key, values in numeric.items() if values}
+    counts = {key: len(values) for key, values in numeric.items() if values}
+    return summary, counts
 
 
 def _write_csv(path: Path, rows: List[dict[str, Any]]) -> None:

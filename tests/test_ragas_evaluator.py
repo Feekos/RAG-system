@@ -11,6 +11,7 @@ from langchain_core.documents import Document
 from src.ragas_evaluator import (
     RagasRunConfig,
     _build_evaluator_llm,
+    _summarize_scores,
     build_ragas_samples,
     load_ragas_config,
     load_testset,
@@ -133,6 +134,20 @@ def test_run_ragas_experiments_writes_leaderboard(tmp_path):
     assert result["leaderboard_markdown"].exists()
 
 
+def test_summarize_scores_ignores_nan_values():
+    summary, counts = _summarize_scores(
+        [
+            {"faithfulness": 1.0, "answer_relevancy": 0.5},
+            {"faithfulness": float("nan"), "answer_relevancy": 1.0},
+        ]
+    )
+
+    assert summary["faithfulness"] == 1.0
+    assert counts["faithfulness"] == 1
+    assert summary["answer_relevancy"] == 0.75
+    assert counts["answer_relevancy"] == 2
+
+
 def test_run_ragas_evaluation_does_not_raise_on_single_metric_failure(tmp_path):
     testset = tmp_path / "testset.jsonl"
     testset.write_text(
@@ -174,6 +189,7 @@ def test_run_ragas_evaluation_does_not_raise_on_single_metric_failure(tmp_path):
         result = run_ragas_evaluation(config, pipeline=pipeline)
 
     assert result["json"].exists()
+    assert result["summary_counts"] == {}
 
 
 def test_build_evaluator_llm_uses_openai_compatible_endpoint():
