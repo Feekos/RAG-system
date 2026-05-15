@@ -14,7 +14,6 @@ targets = [path for base in bases for pattern in patterns for path in base.glob(
 print('Removed optional nixl_ep paths:', [str(path) for path in targets])"
 
 COPY docker/vllm-entrypoint.sh /usr/local/bin/rag-vllm-entrypoint
-COPY docker/vllm-healthcheck.py /usr/local/bin/rag-vllm-healthcheck.py
 RUN chmod +x /usr/local/bin/rag-vllm-entrypoint
 
 ENTRYPOINT ["rag-vllm-entrypoint"]
