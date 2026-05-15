@@ -146,9 +146,9 @@ services:
       - vllm
     healthcheck:
       test:
-        - CMD-SHELL
-        - >-
-          python -c "import os, urllib.request; req=urllib.request.Request('http://127.0.0.1:8000/v1/models', headers={'Authorization':'Bearer '+os.environ.get('RAGAS_LLM_API_KEY','local-vllm-key')}); urllib.request.urlopen(req, timeout=5).read()"
+        - CMD
+        - python3
+        - /usr/local/bin/rag-vllm-healthcheck.py
       interval: 15s
       timeout: 10s
       retries: 80
